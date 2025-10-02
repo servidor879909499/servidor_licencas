@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <title>Painel de Licenças NV</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        th { background: #2c3e50; color: white; }
+        button { padding: 5px 10px; border: none; cursor: pointer; border-radius: 4px; }
+        .prolongar { background: #27ae60; color: white; }
+        .bloquear { background: #c0392b; color: white; }
+    </style>
+</head>
+<body>
+    <h1>Painel de Licenças NV</h1>
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Cliente</th>
+            <th>Status</th>
+            <th>Dias Restantes</th>
+            <th>Ações</th>
+        </tr>
+        {% for lic in licencas %}
+        <tr>
+            <td>{{ lic.id }}</td>
+            <td>{{ lic.cliente }}</td>
+            <td>{{ lic.status }}</td>
+            <td>{{ lic.dias }}</td>
+            <td>
+                <form action="{{ url_for('prolongar', licenca_id=lic.id) }}" method="post" style="display:inline;">
+                    <button class="prolongar">Prolongar</button>
+                </form>
+                <form action="{{ url_for('bloquear', licenca_id=lic.id) }}" method="post" style="display:inline;">
+                    <button class="bloquear">Bloquear</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
