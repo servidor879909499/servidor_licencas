@@ -4,13 +4,10 @@ from datetime import datetime, timedelta
 
 app = Flask(__name__)
 
-# Configuração da conexão com PostgreSQL
+# Configuração da conexão com Neon PostgreSQL
 def conectar():
     return psycopg2.connect(
-        dbname="nv_servidor",
-        user="postgres",
-        password="sua_senha",
-        host="localhost"
+        "postgresql://neondb_owner:npg_cMnJsoUp74VW@ep-misty-dawn-agy72cae-pooler.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
     )
 
 # Página principal: lista todos os clientes NV
