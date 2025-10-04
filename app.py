@@ -78,32 +78,63 @@ def bloquear(cliente_id):
     conn.close()
     return redirect(url_for("painel"))
 
-# ======== API PARA REGISTRO AUTOMÁTICO DO NV SISTEMA ========
-@app.route("/api/licencas", methods=["POST"])
-def api_licencas():
-    data = request.get_json()
+from flask import Flask, request, jsonify
+import psycopg2
+from datetime import datetime
 
+app = Flask(__name__)
+
+def conectar():
+    return psycopg2.connect(
+        "postgresql://neondb_owner:npg_cMnJsoUp74VW@ep-misty-dawn-agy72cae-pooler.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+    )
+
+@app.route("/api/licencas", methods=["GET", "POST"], strict_slashes=False)
+def api_licencas():
     conn = conectar()
     cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO clientes_nv (empresa, maquina_id, chave_licenca, data_inicio, dias, status, ultima_sync)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
-        ON CONFLICT (maquina_id)
-        DO UPDATE SET empresa=EXCLUDED.empresa, chave_licenca=EXCLUDED.chave_licenca,
-                      dias=EXCLUDED.dias, status=EXCLUDED.status, ultima_sync=EXCLUDED.ultima_sync
-    """, (
-        data["empresa"],
-        data["maquina_id"],
-        data["chave_licenca"],
-        datetime.strptime(data["data_inicio"], "%Y-%m-%d %H:%M:%S"),
-        data.get("dias", 30),
-        data.get("status", "ativo"),
-        datetime.now()
-    ))
-    conn.commit()
-    conn.close()
 
-    return jsonify({"ok": True})
+    if request.method == "POST":
+        data = request.get_json()
+        cur.execute("""
+            INSERT INTO clientes_nv (empresa, maquina_id, chave_licenca, data_inicio, dias, status, ultima_sync)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (maquina_id)
+            DO UPDATE SET empresa=EXCLUDED.empresa,
+                          chave_licenca=EXCLUDED.chave_licenca,
+                          dias=EXCLUDED.dias,
+                          status=EXCLUDED.status,
+                          ultima_sync=EXCLUDED.ultima_sync
+        """, (
+            data["empresa"],
+            data["maquina_id"],
+            data["chave_licenca"],
+            datetime.strptime(data["data_inicio"], "%Y-%m-%d %H:%M:%S"),
+            data.get("dias", 30),
+            data.get("status", "ativo"),
+            datetime.now()
+        ))
+        conn.commit()
+        conn.close()
+        return jsonify({"ok": True})
+
+    else:  # GET
+        cur.execute("SELECT empresa, maquina_id, chave_licenca, data_inicio, dias, status FROM clientes_nv")
+        clientes = cur.fetchall()
+        conn.close()
+
+        clientes_json = []
+        for c in clientes:
+            clientes_json.append({
+                "empresa": c[0],
+                "maquina_id": c[1],
+                "chave_licenca": c[2],
+                "data_inicio": str(c[3]),
+                "dias": c[4],
+                "status": c[5]
+            })
+        return jsonify(clientes_json)
+
 
 if __name__ == "__main__":
     app.run(debug=True)
