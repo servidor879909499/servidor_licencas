@@ -4,13 +4,34 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-# --- CONEXÃO COM O BANCO NEON (Render/NeonDB) ---
+# ======== CONEXÃO COM O BANCO (Neon PostgreSQL) ========
 def conectar():
     return psycopg2.connect(
         "postgresql://neondb_owner:npg_cMnJsoUp74VW@ep-misty-dawn-agy72cae-pooler.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require"
     )
 
-# --- PÁGINA PRINCIPAL / PAINEL ---
+# ======== GARANTIR QUE A TABELA EXISTE ========
+def criar_tabela_clientes_nv():
+    conn = conectar()
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS clientes_nv (
+            id SERIAL PRIMARY KEY,
+            empresa TEXT,
+            maquina_id TEXT UNIQUE,
+            chave_licenca TEXT,
+            data_inicio TIMESTAMP,
+            dias INTEGER,
+            status TEXT,
+            ultima_sync TIMESTAMP
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+criar_tabela_clientes_nv()
+
+# ======== PÁGINA PRINCIPAL ========
 @app.route("/")
 @app.route("/painel")
 def painel():
@@ -25,14 +46,11 @@ def painel():
     conn.close()
     return render_template("painel.html", clientes=clientes)
 
-# --- PROLONGAR LICENÇA ---
+# ======== PROLONGAR LICENÇA ========
 @app.route("/prolongar/<int:cliente_id>", methods=["POST"])
 def prolongar(cliente_id):
-    try:
-        dias = int(request.form.get("dias"))
-        if dias <= 0:
-            raise ValueError("Dias inválidos")
-    except:
+    dias = int(request.form.get("dias", 0))
+    if dias <= 0:
         return redirect(url_for("painel"))
 
     conn = conectar()
@@ -46,7 +64,7 @@ def prolongar(cliente_id):
     conn.close()
     return redirect(url_for("painel"))
 
-# --- BLOQUEAR LICENÇA ---
+# ======== BLOQUEAR LICENÇA ========
 @app.route("/bloquear/<int:cliente_id>", methods=["POST"])
 def bloquear(cliente_id):
     conn = conectar()
@@ -60,55 +78,32 @@ def bloquear(cliente_id):
     conn.close()
     return redirect(url_for("painel"))
 
-# --- API PARA O NV SISTEMA (CLIENTE) ---
-@app.route("/api/licencas", methods=["POST", "GET"])
+# ======== API PARA REGISTRO AUTOMÁTICO DO NV SISTEMA ========
+@app.route("/api/licencas", methods=["POST"])
 def api_licencas():
+    data = request.get_json()
+
     conn = conectar()
     cur = conn.cursor()
-
-    if request.method == "POST":
-        data = request.get_json()
-
-        cur.execute("""
-            INSERT INTO clientes_nv (empresa, maquina_id, chave_licenca, data_inicio, dias, status, ultima_sync)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-            ON CONFLICT (maquina_id) DO UPDATE
-            SET empresa = EXCLUDED.empresa,
-                chave_licenca = EXCLUDED.chave_licenca,
-                data_inicio = EXCLUDED.data_inicio,
-                dias = EXCLUDED.dias,
-                status = EXCLUDED.status,
-                ultima_sync = NOW()
-        """, (
-            data["empresa"],
-            data["maquina_id"],
-            data["chave_licenca"],
-            data["data_inicio"],
-            data.get("dias", 30),
-            data.get("status", "ativo"),
-            datetime.now()
-        ))
-        conn.commit()
-        conn.close()
-        return jsonify({"ok": True})
-
-    # GET → retorna todas as licenças (opcional)
-    cur.execute("SELECT empresa, maquina_id, chave_licenca, data_inicio, dias, status FROM clientes_nv")
-    clientes = cur.fetchall()
+    cur.execute("""
+        INSERT INTO clientes_nv (empresa, maquina_id, chave_licenca, data_inicio, dias, status, ultima_sync)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (maquina_id)
+        DO UPDATE SET empresa=EXCLUDED.empresa, chave_licenca=EXCLUDED.chave_licenca,
+                      dias=EXCLUDED.dias, status=EXCLUDED.status, ultima_sync=EXCLUDED.ultima_sync
+    """, (
+        data["empresa"],
+        data["maquina_id"],
+        data["chave_licenca"],
+        datetime.strptime(data["data_inicio"], "%Y-%m-%d %H:%M:%S"),
+        data.get("dias", 30),
+        data.get("status", "ativo"),
+        datetime.now()
+    ))
+    conn.commit()
     conn.close()
 
-    clientes_json = [
-        {
-            "empresa": c[0],
-            "maquina_id": c[1],
-            "chave_licenca": c[2],
-            "data_inicio": str(c[3]),
-            "dias": c[4],
-            "status": c[5]
-        }
-        for c in clientes
-    ]
-    return jsonify(clientes_json)
+    return jsonify({"ok": True})
 
 if __name__ == "__main__":
     app.run(debug=True)
