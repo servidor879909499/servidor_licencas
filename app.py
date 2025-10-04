@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 import psycopg2
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 
 app = Flask(__name__)
@@ -45,7 +45,14 @@ def painel():
     """)
     clientes = cur.fetchall()
     conn.close()
-    return render_template("painel.html", clientes=clientes)
+
+    # Calcula data_fim para cada registro
+    clientes_final = []
+    for c in clientes:
+        data_fim = c[4] + timedelta(days=c[5]) if c[4] else None
+        clientes_final.append(list(c) + [data_fim])
+
+    return render_template("painel.html", clientes=clientes_final)
 
 # ======== PROLONGAR LICENÇA ========
 @app.route("/prolongar/<int:cliente_id>", methods=["POST"])
@@ -59,6 +66,24 @@ def prolongar(cliente_id):
     cur.execute("""
         UPDATE clientes_nv
         SET dias = dias + %s, status='ativo', ultima_sync=%s
+        WHERE id=%s
+    """, (dias, datetime.now(), cliente_id))
+    conn.commit()
+    conn.close()
+    return redirect(url_for("painel"))
+
+# ======== DIMINUIR LICENÇA ========
+@app.route("/diminuir/<int:cliente_id>", methods=["POST"])
+def diminuir(cliente_id):
+    dias = int(request.form.get("dias", 0))
+    if dias <= 0:
+        return redirect(url_for("painel"))
+
+    conn = conectar()
+    cur = conn.cursor()
+    cur.execute("""
+        UPDATE clientes_nv
+        SET dias = GREATEST(dias - %s, 0), ultima_sync=%s
         WHERE id=%s
     """, (dias, datetime.now(), cliente_id))
     conn.commit()
@@ -110,16 +135,21 @@ def api_licencas():
         return jsonify({"ok": True})
 
     else:  # GET
-        cur.execute("SELECT empresa, maquina_id, chave_licenca, data_inicio, dias, status FROM clientes_nv")
+        cur.execute("""
+            SELECT empresa, maquina_id, chave_licenca, data_inicio, dias, status
+            FROM clientes_nv
+        """)
         clientes = cur.fetchall()
         conn.close()
         clientes_json = []
         for c in clientes:
+            data_fim = c[3] + timedelta(days=c[4]) if c[3] else None
             clientes_json.append({
                 "empresa": c[0],
                 "maquina_id": c[1],
                 "chave_licenca": c[2],
                 "data_inicio": c[3].strftime("%Y-%m-%d %H:%M:%S"),
+                "data_fim": data_fim.strftime("%Y-%m-%d %H:%M:%S") if data_fim else None,
                 "dias": c[4],
                 "status": c[5]
             })
@@ -129,4 +159,5 @@ def api_licencas():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
