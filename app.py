@@ -1,13 +1,14 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 import psycopg2
 from datetime import datetime
+import os
 
 app = Flask(__name__)
 
 # ======== CONEXÃO COM O BANCO (Neon PostgreSQL) ========
 def conectar():
     return psycopg2.connect(
-        "postgresql://neondb_owner:npg_cMnJsoUp74VW@ep-misty-dawn-agy72cae-pooler.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require"
+        "postgresql://neondb_owner:npg_cMnJsoUp74VW@ep-misty-dawn-agy72cae-pooler.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
     )
 
 # ======== GARANTIR QUE A TABELA EXISTE ========
@@ -32,8 +33,8 @@ def criar_tabela_clientes_nv():
 criar_tabela_clientes_nv()
 
 # ======== PÁGINA PRINCIPAL ========
-@app.route("/")
-@app.route("/painel")
+@app.route("/", strict_slashes=False)
+@app.route("/painel", strict_slashes=False)
 def painel():
     conn = conectar()
     cur = conn.cursor()
@@ -47,10 +48,13 @@ def painel():
     return render_template("painel.html", clientes=clientes)
 
 # ======== PROLONGAR LICENÇA ========
-@app.route("/prolongar/<int:cliente_id>", methods=["POST"])
+@app.route("/prolongar/<int:cliente_id>", methods=["POST"], strict_slashes=False)
 def prolongar(cliente_id):
-    dias = int(request.form.get("dias", 0))
-    if dias <= 0:
+    try:
+        dias = int(request.form.get("dias", 0))
+        if dias <= 0:
+            return redirect(url_for("painel"))
+    except:
         return redirect(url_for("painel"))
 
     conn = conectar()
@@ -65,7 +69,7 @@ def prolongar(cliente_id):
     return redirect(url_for("painel"))
 
 # ======== BLOQUEAR LICENÇA ========
-@app.route("/bloquear/<int:cliente_id>", methods=["POST"])
+@app.route("/bloquear/<int:cliente_id>", methods=["POST"], strict_slashes=False)
 def bloquear(cliente_id):
     conn = conectar()
     cur = conn.cursor()
@@ -78,17 +82,7 @@ def bloquear(cliente_id):
     conn.close()
     return redirect(url_for("painel"))
 
-from flask import Flask, request, jsonify
-import psycopg2
-from datetime import datetime
-
-app = Flask(__name__)
-
-def conectar():
-    return psycopg2.connect(
-        "postgresql://neondb_owner:npg_cMnJsoUp74VW@ep-misty-dawn-agy72cae-pooler.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
-    )
-
+# ======== API PARA REGISTRO E SINCRONIZAÇÃO ========
 @app.route("/api/licencas", methods=["GET", "POST"], strict_slashes=False)
 def api_licencas():
     conn = conectar()
@@ -119,22 +113,25 @@ def api_licencas():
         return jsonify({"ok": True})
 
     else:  # GET
-        cur.execute("SELECT empresa, maquina_id, chave_licenca, data_inicio, dias, status FROM clientes_nv")
+        cur.execute("""
+            SELECT empresa, maquina_id, chave_licenca, data_inicio, dias, status 
+            FROM clientes_nv
+        """)
         clientes = cur.fetchall()
         conn.close()
 
-        clientes_json = []
-        for c in clientes:
-            clientes_json.append({
-                "empresa": c[0],
-                "maquina_id": c[1],
-                "chave_licenca": c[2],
-                "data_inicio": str(c[3]),
-                "dias": c[4],
-                "status": c[5]
-            })
+        clientes_json = [{
+            "empresa": c[0],
+            "maquina_id": c[1],
+            "chave_licenca": c[2],
+            "data_inicio": str(c[3]),
+            "dias": c[4],
+            "status": c[5]
+        } for c in clientes]
+
         return jsonify(clientes_json)
 
-
+# ======== EXECUÇÃO ========
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=True)
