@@ -18,7 +18,8 @@
         }
         .form-inline {
             display: flex;
-            gap: 0.5rem;
+            flex-wrap: wrap;
+            gap: 0.4rem;
             justify-content: center;
         }
         @media (max-width: 768px) {
@@ -40,6 +41,7 @@
                     <th>Máquina ID</th>
                     <th>Chave</th>
                     <th>Data Início</th>
+                    <th>Data Fim</th>
                     <th>Dias</th>
                     <th>Status</th>
                     <th>Última Sync</th>
@@ -53,21 +55,28 @@
                     <td>{{ c[2] }}</td>
                     <td>{{ c[3] }}</td>
                     <td>{{ c[4] | string }}</td>
+                    <td>{{ c[6] | string }}</td> <!-- Data Fim -->
                     <td>{{ c[5] }}</td>
                     <td>
-                        {% if c[6] == 'ativo' %}
+                        {% if c[7] == 'ativo' %}
                             <span class="badge bg-success">Ativo</span>
                         {% else %}
                             <span class="badge bg-danger">Bloqueado</span>
                         {% endif %}
                     </td>
-                    <td>{{ c[7] | string }}</td>
+                    <td>{{ c[8] | string }}</td>
                     <td>
                         <div class="form-inline">
                             <form action="{{ url_for('prolongar', cliente_id=c[0]) }}" method="POST">
                                 <input type="number" name="dias" placeholder="Dias" class="form-control form-control-sm" required min="1">
                                 <button class="btn btn-sm btn-primary mt-1 mt-md-0">Prolongar</button>
                             </form>
+
+                            <form action="{{ url_for('diminuir', cliente_id=c[0]) }}" method="POST">
+                                <input type="number" name="dias" placeholder="Dias" class="form-control form-control-sm" required min="1">
+                                <button class="btn btn-sm btn-warning mt-1 mt-md-0">Diminuir</button>
+                            </form>
+
                             <form action="{{ url_for('bloquear', cliente_id=c[0]) }}" method="POST">
                                 <button class="btn btn-sm btn-danger mt-1 mt-md-0">Bloquear</button>
                             </form>
