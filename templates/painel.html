@@ -8,6 +8,10 @@
         body {
             background-color: #f8f9fa;
         }
+        h2 {
+            color: #1a3d7c;
+            font-weight: 600;
+        }
         .table thead th {
             vertical-align: middle;
             text-align: center;
@@ -18,24 +22,29 @@
         }
         .form-inline {
             display: flex;
-            flex-wrap: wrap;
             gap: 0.4rem;
             justify-content: center;
+            flex-wrap: wrap;
         }
-        @media (max-width: 768px) {
-            .form-inline {
-                flex-direction: column;
-            }
+        input[type="number"] {
+            width: 80px;
+            text-align: center;
+        }
+        .badge {
+            font-size: 0.9em;
+        }
+        .btn {
+            min-width: 90px;
         }
     </style>
 </head>
 <body>
-<div class="container mt-5">
+<div class="container mt-5 mb-5">
     <h2 class="text-center mb-4">Painel de Licenças - NV Sistema</h2>
 
     <div class="table-responsive shadow-sm bg-white rounded">
-        <table class="table table-striped table-hover mb-0">
-            <thead class="table-dark">
+        <table class="table table-striped table-hover mb-0 align-middle">
+            <thead class="table-dark text-center">
                 <tr>
                     <th>Empresa</th>
                     <th>Máquina ID</th>
@@ -54,29 +63,33 @@
                     <td>{{ c[1] }}</td>
                     <td>{{ c[2] }}</td>
                     <td>{{ c[3] }}</td>
-                    <td>{{ c[4] | string }}</td>
-                    <td>{{ c[6] | string }}</td> <!-- Data Fim -->
+                    <td>{{ c[4].strftime('%Y-%m-%d') if c[4] else '' }}</td>
+                    <td>
+                        {% if c[4] %}
+                            {{ (c[4] + timedelta(days=c[5])).strftime('%Y-%m-%d') }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
                     <td>{{ c[5] }}</td>
                     <td>
-                        {% if c[7] == 'ativo' %}
+                        {% if c[6] == 'ativo' %}
                             <span class="badge bg-success">Ativo</span>
                         {% else %}
                             <span class="badge bg-danger">Bloqueado</span>
                         {% endif %}
                     </td>
-                    <td>{{ c[8] | string }}</td>
+                    <td>{{ c[7].strftime('%Y-%m-%d %H:%M:%S') if c[7] else '-' }}</td>
                     <td>
                         <div class="form-inline">
                             <form action="{{ url_for('prolongar', cliente_id=c[0]) }}" method="POST">
-                                <input type="number" name="dias" placeholder="Dias" class="form-control form-control-sm" required min="1">
+                                <input type="number" name="dias" placeholder="+ Dias" class="form-control form-control-sm" required min="1">
                                 <button class="btn btn-sm btn-primary mt-1 mt-md-0">Prolongar</button>
                             </form>
-
                             <form action="{{ url_for('diminuir', cliente_id=c[0]) }}" method="POST">
-                                <input type="number" name="dias" placeholder="Dias" class="form-control form-control-sm" required min="1">
-                                <button class="btn btn-sm btn-warning mt-1 mt-md-0">Diminuir</button>
+                                <input type="number" name="dias" placeholder="- Dias" class="form-control form-control-sm" required min="1">
+                                <button class="btn btn-sm btn-warning mt-1 mt-md-0 text-dark">Diminuir</button>
                             </form>
-
                             <form action="{{ url_for('bloquear', cliente_id=c[0]) }}" method="POST">
                                 <button class="btn btn-sm btn-danger mt-1 mt-md-0">Bloquear</button>
                             </form>
