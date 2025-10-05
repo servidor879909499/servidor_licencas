@@ -46,7 +46,7 @@ def painel():
     clientes = cur.fetchall()
     conn.close()
 
-    # Calcula data_fim para cada registro
+    # Adiciona a data de término calculada
     clientes_final = []
     for c in clientes:
         data_fim = c[4] + timedelta(days=c[5]) if c[4] else None
@@ -104,7 +104,7 @@ def bloquear(cliente_id):
     conn.close()
     return redirect(url_for("painel"))
 
-# ======== API LICENÇAS ========
+# ======== API LICENÇAS (POST = sincronização, GET = consulta) ========
 @app.route("/api/licencas", methods=["GET", "POST"], strict_slashes=False)
 def api_licencas():
     conn = conectar()
@@ -112,6 +112,17 @@ def api_licencas():
 
     if request.method == "POST":
         data = request.get_json()
+
+        # --- Trata formato flexível de data ---
+        data_inicio_str = data.get("data_inicio", "")
+        try:
+            if " " in data_inicio_str:
+                data_inicio = datetime.strptime(data_inicio_str, "%Y-%m-%d %H:%M:%S")
+            else:
+                data_inicio = datetime.strptime(data_inicio_str, "%Y-%m-%d")
+        except Exception:
+            data_inicio = datetime.now()
+
         cur.execute("""
             INSERT INTO clientes_nv (empresa, maquina_id, chave_licenca, data_inicio, dias, status, ultima_sync)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
@@ -125,7 +136,7 @@ def api_licencas():
             data["empresa"],
             data["maquina_id"],
             data["chave_licenca"],
-            datetime.strptime(data["data_inicio"], "%Y-%m-%d %H:%M:%S"),
+            data_inicio,
             data.get("dias", 30),
             data.get("status", "ativo"),
             datetime.now()
@@ -141,6 +152,7 @@ def api_licencas():
         """)
         clientes = cur.fetchall()
         conn.close()
+
         clientes_json = []
         for c in clientes:
             data_fim = c[3] + timedelta(days=c[4]) if c[3] else None
@@ -148,16 +160,14 @@ def api_licencas():
                 "empresa": c[0],
                 "maquina_id": c[1],
                 "chave_licenca": c[2],
-                "data_inicio": c[3].strftime("%Y-%m-%d %H:%M:%S"),
+                "data_inicio": c[3].strftime("%Y-%m-%d %H:%M:%S") if c[3] else None,
                 "data_fim": data_fim.strftime("%Y-%m-%d %H:%M:%S") if data_fim else None,
                 "dias": c[4],
                 "status": c[5]
             })
         return jsonify(clientes_json)
 
-# ======== INÍCIO DO SERVIDOR ========
+# ======== EXECUÇÃO DO SERVIDOR ========
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
-
-
