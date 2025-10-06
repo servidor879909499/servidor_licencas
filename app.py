@@ -132,6 +132,7 @@ def logout():
 # ======== API REGISTRO AUTOMÁTICO ========
 @app.route("/api/licencas", methods=["POST"])
 def api_licencas():
+    """Envia ou atualiza licença no servidor"""
     data = request.get_json()
     conn = conectar()
     cur = conn.cursor()
@@ -153,6 +154,31 @@ def api_licencas():
     conn.commit()
     conn.close()
     return jsonify({"ok": True})
+
+# ======== NOVA ROTA GET PARA BUSCAR LICENÇA ========
+@app.route("/api/licencas/<maquina_id>", methods=["GET"])
+def buscar_licenca(maquina_id):
+    """Busca licença pelo ID da máquina"""
+    conn = conectar()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT empresa, maquina_id, chave_licenca, data_inicio, dias, status
+        FROM clientes_nv
+        WHERE maquina_id = %s
+    """, (maquina_id,))
+    licenca = cur.fetchone()
+    conn.close()
+
+    if licenca:
+        return jsonify({
+            "empresa": licenca[0],
+            "maquina_id": licenca[1],
+            "chave_licenca": licenca[2],
+            "data_inicio": licenca[3].strftime("%Y-%m-%d %H:%M:%S") if licenca[3] else None,
+            "dias": licenca[4],
+            "status": licenca[5]
+        })
+    return jsonify({"error": "Licença não encontrada"}), 404
 
 if __name__ == "__main__":
     app.run(debug=True)
