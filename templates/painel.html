@@ -1,128 +1,85 @@
 <!DOCTYPE html>
 <html lang="pt">
 <head>
-<meta charset="UTF-8">
-<title>{{ title }}</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-<style>
-body { background-color: #f8f9fa; overflow-x: hidden; }
-.sidebar { position: fixed; top: 56px; left: 0; height: 100%; width: 240px; background-color: #212529; color: white; transition: all 0.3s ease; overflow-y: auto; z-index: 1000; }
-.sidebar.collapsed { width: 70px; }
-.sidebar a { color: #adb5bd; display: block; padding: 12px 20px; text-decoration: none; white-space: nowrap; transition: 0.3s; }
-.sidebar a:hover, .sidebar a.active { background-color: #495057; color: #fff; }
-.sidebar h5 { text-align: center; padding: 10px; }
-.sidebar .icon { margin-right: 10px; }
-.sidebar.collapsed .text { display: none; }
-.content { margin-left: 250px; padding: 100px 20px 20px 20px; transition: all 0.3s ease; }
-.content.expanded { margin-left: 80px; }
-.table th, .table td { vertical-align: middle; }
-.toggle-btn { background: none; border: none; color: white; font-size: 22px; cursor: pointer; margin-right: 10px; }
-</style>
+    <meta charset="UTF-8">
+    <title>Painel de Licenças - NV Sistema</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .table thead th {
+            vertical-align: middle;
+            text-align: center;
+        }
+        .table tbody td {
+            vertical-align: middle;
+            text-align: center;
+        }
+        .form-inline {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+        }
+        @media (max-width: 768px) {
+            .form-inline {
+                flex-direction: column;
+            }
+        }
+    </style>
 </head>
 <body>
+<div class="container mt-5">
+    <h2 class="text-center mb-4">Painel de Licenças - NV Sistema</h2>
 
-<!-- Navbar -->
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top shadow-sm">
-<div class="container-fluid">
-<button class="toggle-btn" id="toggleSidebar">☰</button>
-<a class="navbar-brand fw-bold" href="{{ url_for('painel') }}">NV Sistema</a>
-<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-<span class="navbar-toggler-icon"></span>
-</button>
-<div class="collapse navbar-collapse" id="navbarNav">
-<ul class="navbar-nav ms-auto">
-<li class="nav-item"><a class="nav-link {% if request.path == '/painel' %}active{% endif %}" href="{{ url_for('painel') }}">Início</a></li>
-<li class="nav-item"><a class="nav-link {% if request.path == '/clientes' %}active{% endif %}" href="{{ url_for('clientes') }}">Clientes</a></li>
-<li class="nav-item"><a class="nav-link {% if request.path == '/licencas' %}active{% endif %}" href="{{ url_for('licencas') }}">Licenças</a></li>
-<li class="nav-item"><a class="nav-link text-danger" href="{{ url_for('logout') }}">Sair</a></li>
-</ul>
-</div>
-</div>
-</nav>
-
-<!-- Sidebar -->
-<div class="sidebar" id="sidebar">
-<h5>Menu</h5>
-<a href="{{ url_for('painel') }}" class="{% if request.path == '/painel' %}active{% endif %}"><span class="icon">📊</span><span class="text">Painel</span></a>
-<a href="{{ url_for('faturas') }}" class="{% if request.path == '/faturas' %}active{% endif %}"><span class="icon">🧾</span><span class="text">Faturas</span></a>
-<a href="{{ url_for('licencas') }}" class="{% if request.path == '/licencas' %}active{% endif %}"><span class="icon">🔑</span><span class="text">Licenças</span></a>
-<a href="{{ url_for('clientes') }}" class="{% if request.path == '/clientes' %}active{% endif %}"><span class="icon">👥</span><span class="text">Clientes</span></a>
-<a href="{{ url_for('configuracoes') }}" class="{% if request.path == '/configuracoes' %}active{% endif %}"><span class="icon">⚙️</span><span class="text">Configurações</span></a>
-<a href="{{ url_for('atualizacoes') }}" class="{% if request.path == '/atualizacoes' %}active{% endif %}"><span class="icon">📦</span><span class="text">Atualizações</span></a>
-</div>
-
-<!-- Conteúdo principal -->
-<div class="content" id="content">
-<h3 class="text-center mb-4 mt-3">{{ title }}</h3>
-
-<!-- Flash messages -->
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% if messages %}
-    {% for category, message in messages %}
-      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-        {{ message }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-      </div>
-    {% endfor %}
-  {% endif %}
-{% endwith %}
-
-<table class="table table-striped table-hover shadow-sm align-middle">
-<thead class="table-dark">
-<tr>
-<th>Empresa</th><th>Máquina ID</th><th>Chave</th><th>Data Início</th><th>Data Fim</th><th>Dias</th><th>Status</th><th>Última Sync</th><th class="text-center">Ações</th>
-</tr>
-</thead>
-<tbody>
-{% for c in clientes %}
-<tr>
-<td>{{ c[1] }}</td>
-<td>{{ c[2] }}</td>
-<td>{{ c[3] }}</td>
-<td>{{ c[4].strftime("%Y-%m-%d %H:%M:%S") if c[4] else "" }}</td>
-<td>{{ c[8].strftime("%Y-%m-%d %H:%M:%S") if c[8] else "" }}</td>
-<td>{{ c[5] }}</td>
-<td>{% if c[6] == 'ativo' %}<span class="badge bg-success">Ativo</span>{% else %}<span class="badge bg-danger">Bloqueado</span>{% endif %}</td>
-<td>{{ c[7].strftime("%Y-%m-%d %H:%M:%S") if c[7] else "" }}</td>
-<td class="text-center">
-<div class="d-flex justify-content-center gap-1">
-<form action="{{ url_for('prolongar', cliente_id=c[0]) }}" method="POST" class="d-inline">
-<input type="number" name="dias" placeholder="Dias" class="form-control form-control-sm d-inline w-50 mb-1" required>
-<button class="btn btn-sm btn-primary w-100">Prolongar</button>
-</form>
-<form action="{{ url_for('diminuir', cliente_id=c[0]) }}" method="POST" class="d-inline">
-<input type="number" name="dias" placeholder="Dias" class="form-control form-control-sm d-inline w-50 mb-1" required>
-<button class="btn btn-sm btn-warning w-100 text-dark">Diminuir</button>
-</form>
-<form action="{{ url_for('bloquear', cliente_id=c[0]) }}" method="POST" class="d-inline">
-<button class="btn btn-sm btn-danger w-100">Bloquear</button>
-</form>
-</div>
-</td>
-</tr>
-{% endfor %}
-</tbody>
-</table>
+    <div class="table-responsive shadow-sm bg-white rounded">
+        <table class="table table-striped table-hover mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>Empresa</th>
+                    <th>Máquina ID</th>
+                    <th>Chave</th>
+                    <th>Data Início</th>
+                    <th>Dias</th>
+                    <th>Status</th>
+                    <th>Última Sync</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in clientes %}
+                <tr>
+                    <td>{{ c[1] }}</td>
+                    <td>{{ c[2] }}</td>
+                    <td>{{ c[3] }}</td>
+                    <td>{{ c[4] | string }}</td>
+                    <td>{{ c[5] }}</td>
+                    <td>
+                        {% if c[6] == 'ativo' %}
+                            <span class="badge bg-success">Ativo</span>
+                        {% else %}
+                            <span class="badge bg-danger">Bloqueado</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ c[7] | string }}</td>
+                    <td>
+                        <div class="form-inline">
+                            <form action="{{ url_for('prolongar', cliente_id=c[0]) }}" method="POST">
+                                <input type="number" name="dias" placeholder="Dias" class="form-control form-control-sm" required min="1">
+                                <button class="btn btn-sm btn-primary mt-1 mt-md-0">Prolongar</button>
+                            </form>
+                            <form action="{{ url_for('bloquear', cliente_id=c[0]) }}" method="POST">
+                                <button class="btn btn-sm btn-danger mt-1 mt-md-0">Bloquear</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-const toggleBtn = document.getElementById("toggleSidebar");
-const sidebar = document.getElementById("sidebar");
-const content = document.getElementById("content");
-
-// Lembrar estado do sidebar
-if(localStorage.getItem("sidebarCollapsed") === "true") {
-    sidebar.classList.add("collapsed");
-    content.classList.add("expanded");
-}
-
-toggleBtn.addEventListener("click", () => {
-    sidebar.classList.toggle("collapsed");
-    content.classList.toggle("expanded");
-    localStorage.setItem("sidebarCollapsed", sidebar.classList.contains("collapsed"));
-});
-</script>
-
 </body>
 </html>
