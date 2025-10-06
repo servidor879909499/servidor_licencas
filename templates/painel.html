@@ -20,6 +20,7 @@
             display: flex;
             gap: 0.5rem;
             justify-content: center;
+            flex-wrap: wrap;
         }
         @media (max-width: 768px) {
             .form-inline {
@@ -40,6 +41,7 @@
                     <th>Máquina ID</th>
                     <th>Chave</th>
                     <th>Data Início</th>
+                    <th>Data Fim</th>
                     <th>Dias</th>
                     <th>Status</th>
                     <th>Última Sync</th>
@@ -53,6 +55,13 @@
                     <td>{{ c[2] }}</td>
                     <td>{{ c[3] }}</td>
                     <td>{{ c[4] | string }}</td>
+                    <td>
+                        {% if c[4] and c[5] %}
+                            {{ (c[4] + timedelta(days=c[5])) | string }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
                     <td>{{ c[5] }}</td>
                     <td>
                         {% if c[6] == 'ativo' %}
@@ -66,10 +75,14 @@
                         <div class="form-inline">
                             <form action="{{ url_for('prolongar', cliente_id=c[0]) }}" method="POST">
                                 <input type="number" name="dias" placeholder="Dias" class="form-control form-control-sm" required min="1">
-                                <button class="btn btn-sm btn-primary mt-1 mt-md-0">Prolongar</button>
+                                <button class="btn btn-sm btn-primary">Prolongar</button>
+                            </form>
+                            <form action="{{ url_for('diminuir', cliente_id=c[0]) }}" method="POST">
+                                <input type="number" name="dias" placeholder="Dias" class="form-control form-control-sm" required min="1">
+                                <button class="btn btn-sm btn-warning text-dark">Diminuir</button>
                             </form>
                             <form action="{{ url_for('bloquear', cliente_id=c[0]) }}" method="POST">
-                                <button class="btn btn-sm btn-danger mt-1 mt-md-0">Bloquear</button>
+                                <button class="btn btn-sm btn-danger">Bloquear</button>
                             </form>
                         </div>
                     </td>
