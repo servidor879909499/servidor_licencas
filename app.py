@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 import psycopg2
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 
 app = Flask(__name__)
@@ -45,7 +45,16 @@ def painel():
     """)
     clientes = cur.fetchall()
     conn.close()
-    return render_template("painel.html", clientes=clientes)
+
+    # Calcula data_fim para cada cliente
+    clientes_final = []
+    for c in clientes:
+        data_inicio = c[4]
+        dias = c[5] or 0
+        data_fim = (data_inicio + timedelta(days=dias)) if data_inicio else None
+        clientes_final.append(list(c) + [data_fim])  # adiciona como c[8]
+
+    return render_template("painel.html", clientes=clientes_final)
 
 # ======== PROLONGAR LICENÇA ========
 @app.route("/prolongar/<int:cliente_id>", methods=["POST"])
@@ -59,6 +68,24 @@ def prolongar(cliente_id):
     cur.execute("""
         UPDATE clientes_nv
         SET dias = dias + %s, status='ativo', ultima_sync=%s
+        WHERE id=%s
+    """, (dias, datetime.now(), cliente_id))
+    conn.commit()
+    conn.close()
+    return redirect(url_for("painel"))
+
+# ======== DIMINUIR LICENÇA ========
+@app.route("/diminuir/<int:cliente_id>", methods=["POST"])
+def diminuir(cliente_id):
+    dias = int(request.form.get("dias", 0))
+    if dias <= 0:
+        return redirect(url_for("painel"))
+
+    conn = conectar()
+    cur = conn.cursor()
+    cur.execute("""
+        UPDATE clientes_nv
+        SET dias = GREATEST(dias - %s, 0), ultima_sync=%s
         WHERE id=%s
     """, (dias, datetime.now(), cliente_id))
     conn.commit()
