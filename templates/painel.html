@@ -7,33 +7,75 @@
     <style>
         body {
             background-color: #f8f9fa;
+            overflow-x: hidden;
         }
+
+        /* ===== Sidebar ===== */
         .sidebar {
             position: fixed;
             top: 56px;
             left: 0;
             height: 100%;
-            width: 220px;
+            width: 240px;
             background-color: #212529;
             color: white;
-            padding-top: 1rem;
+            transition: all 0.3s ease;
+            overflow-y: auto;
+            z-index: 1000;
         }
+
+        .sidebar.collapsed {
+            width: 70px;
+        }
+
         .sidebar a {
             color: #adb5bd;
             display: block;
-            padding: 10px 20px;
+            padding: 12px 20px;
             text-decoration: none;
+            white-space: nowrap;
+            transition: 0.3s;
         }
+
         .sidebar a:hover {
             background-color: #495057;
             color: #fff;
         }
-        .content {
-            margin-left: 240px;
-            padding: 20px;
+
+        .sidebar h5 {
+            text-align: center;
+            padding: 10px;
         }
+
+        .sidebar .icon {
+            margin-right: 10px;
+        }
+
+        .sidebar.collapsed .text {
+            display: none;
+        }
+
+        .content {
+            margin-left: 250px;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .content.expanded {
+            margin-left: 80px;
+        }
+
         .table th, .table td {
             vertical-align: middle;
+        }
+
+        .toggle-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 22px;
+            cursor: pointer;
+            margin-right: 10px;
         }
     </style>
 </head>
@@ -42,6 +84,7 @@
 <!-- 🔹 Barra de navegação superior -->
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top shadow-sm">
     <div class="container-fluid">
+        <button class="toggle-btn" id="toggleSidebar">☰</button>
         <a class="navbar-brand fw-bold" href="#">NV Sistema</a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
             <span class="navbar-toggler-icon"></span>
@@ -58,18 +101,18 @@
 </nav>
 
 <!-- 🔹 Barra lateral -->
-<div class="sidebar">
-    <h5 class="text-center text-light mb-3">Menu</h5>
-    <a href="#">📊 Painel</a>
-    <a href="#">🧾 Faturas</a>
-    <a href="#">🔑 Licenças</a>
-    <a href="#">👥 Clientes</a>
-    <a href="#">⚙️ Configurações</a>
-    <a href="#">📦 Atualizações</a>
+<div class="sidebar" id="sidebar">
+    <h5>Menu</h5>
+    <a href="#"><span class="icon">📊</span><span class="text">Painel</span></a>
+    <a href="#"><span class="icon">🧾</span><span class="text">Faturas</span></a>
+    <a href="#"><span class="icon">🔑</span><span class="text">Licenças</span></a>
+    <a href="#"><span class="icon">👥</span><span class="text">Clientes</span></a>
+    <a href="#"><span class="icon">⚙️</span><span class="text">Configurações</span></a>
+    <a href="#"><span class="icon">📦</span><span class="text">Atualizações</span></a>
 </div>
 
 <!-- 🔹 Conteúdo principal -->
-<div class="content">
+<div class="content" id="content">
     <h3 class="text-center mb-4 mt-3">Painel de Licenças - NV Sistema</h3>
 
     <table class="table table-striped table-hover shadow-sm align-middle">
@@ -93,7 +136,7 @@
                 <td>{{ c[2] }}</td>
                 <td>{{ c[3] }}</td>
                 <td>{{ c[4].strftime("%Y-%m-%d %H:%M:%S") if c[4] else "" }}</td>
-                <td>{{ c[8].strftime("%Y-%m-%d %H:%M:%S") if c[8] else "" }}</td>
+                <td>{{ (c[4] + timedelta(days=c[5])).strftime("%Y-%m-%d %H:%M:%S") if c[4] and c[5] else "" }}</td>
                 <td>{{ c[5] }}</td>
                 <td>
                     {% if c[6] == 'ativo' %}
@@ -125,5 +168,16 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    const toggleBtn = document.getElementById("toggleSidebar");
+    const sidebar = document.getElementById("sidebar");
+    const content = document.getElementById("content");
+
+    toggleBtn.addEventListener("click", () => {
+        sidebar.classList.toggle("collapsed");
+        content.classList.toggle("expanded");
+    });
+</script>
+
 </body>
 </html>
