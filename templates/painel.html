@@ -2,130 +2,182 @@
 <html lang="pt">
 <head>
     <meta charset="UTF-8">
-    <title>Painel de Licenças - NV Sistema</title>
+    <title>Painel de Licenças NV Sistema</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
-            display: flex;
-            min-height: 100vh;
-            margin: 0;
+            background-color: #f8f9fa;
+            overflow-x: hidden;
         }
-        /* ====== Sidebar ====== */
+
+        /* ===== Sidebar ===== */
         .sidebar {
-            width: 230px;
+            position: fixed;
+            top: 56px;
+            left: 0;
+            height: 100%;
+            width: 240px;
             background-color: #212529;
             color: white;
-            display: flex;
-            flex-direction: column;
-            padding-top: 20px;
+            transition: all 0.3s ease;
+            overflow-y: auto;
+            z-index: 1000;
         }
+
+        .sidebar.collapsed {
+            width: 70px;
+        }
+
         .sidebar a {
-            color: white;
-            text-decoration: none;
+            color: #adb5bd;
+            display: block;
             padding: 12px 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            transition: 0.2s;
+            text-decoration: none;
+            white-space: nowrap;
+            transition: 0.3s;
         }
+
         .sidebar a:hover {
             background-color: #495057;
-        }
-        .sidebar .logout {
-            margin-top: auto;
-            background-color: #dc3545;
-        }
-        .sidebar .logout:hover {
-            background-color: #c82333;
+            color: #fff;
         }
 
-        /* ====== Conteúdo Principal ====== */
+        .sidebar h5 {
+            text-align: center;
+            padding: 10px;
+        }
+
+        .sidebar .icon {
+            margin-right: 10px;
+        }
+
+        .sidebar.collapsed .text {
+            display: none;
+        }
+
         .content {
-            flex-grow: 1;
-            background-color: #f8f9fa;
+            margin-left: 250px;
             padding: 20px;
+            transition: all 0.3s ease;
         }
 
-        .header {
-            background-color: white;
-            padding: 15px 20px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
+        .content.expanded {
+            margin-left: 80px;
         }
 
-        h2 {
-            margin: 0;
+        .table th, .table td {
+            vertical-align: middle;
+        }
+
+        .toggle-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 22px;
+            cursor: pointer;
+            margin-right: 10px;
         }
     </style>
 </head>
 <body>
-    <!-- Sidebar -->
-    <div class="sidebar">
-        <a href="{{ url_for('painel') }}"><span class="icon">📊</span><span class="text">Painel</span></a>
-        <a href="{{ url_for('faturas') }}"><span class="icon">🧾</span><span class="text">Faturas</span></a>
-        <a href="{{ url_for('painel') }}"><span class="icon">🔑</span><span class="text">Licenças</span></a>
-        <a href="{{ url_for('clientes') }}"><span class="icon">👥</span><span class="text">Clientes</span></a>
-        <a href="{{ url_for('config') }}"><span class="icon">⚙️</span><span class="text">Configurações</span></a>
-        <a href="{{ url_for('atualizacoes') }}"><span class="icon">📦</span><span class="text">Atualizações</span></a>
-        <a href="{{ url_for('logout') }}" class="logout text-center"><span class="icon">🚪</span><span class="text">Sair</span></a>
-    </div>
 
-    <!-- Conteúdo Principal -->
-    <div class="content">
-        <div class="header d-flex justify-content-between align-items-center">
-            <h2>Painel de Licenças - NV Sistema</h2>
-        </div>
-
-        <div class="table-responsive shadow-sm bg-white rounded p-3">
-            <table class="table table-striped table-hover mb-0">
-                <thead class="table-dark text-center">
-                    <tr>
-                        <th>Empresa</th>
-                        <th>Máquina ID</th>
-                        <th>Chave</th>
-                        <th>Data Início</th>
-                        <th>Data Fim</th>
-                        <th>Dias</th>
-                        <th>Status</th>
-                        <th>Última Sync</th>
-                        <th>Ações</th>
-                    </tr>
-                </thead>
-                <tbody class="text-center">
-                    {% for c in clientes %}
-                    <tr>
-                        <td>{{ c[1] }}</td>
-                        <td>{{ c[2] }}</td>
-                        <td>{{ c[3] }}</td>
-                        <td>{{ c[4].strftime('%Y-%m-%d') if c[4] else '' }}</td>
-                        <td>{{ c[8].strftime('%Y-%m-%d') if c[8] else '' }}</td>
-                        <td>{{ c[5] }}</td>
-                        <td>
-                            {% if c[6] == 'ativo' %}
-                                <span class="badge bg-success">Ativo</span>
-                            {% else %}
-                                <span class="badge bg-danger">Bloqueado</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ c[7].strftime('%Y-%m-%d %H:%M:%S') if c[7] else '' }}</td>
-                        <td>
-                            <form action="{{ url_for('prolongar', cliente_id=c[0]) }}" method="POST" class="d-inline">
-                                <input type="number" name="dias" placeholder="Dias" class="form-control form-control-sm d-inline w-50 mb-1" required>
-                                <button class="btn btn-sm btn-primary">+</button>
-                            </form>
-                            <form action="{{ url_for('diminuir', cliente_id=c[0]) }}" method="POST" class="d-inline">
-                                <input type="number" name="dias" placeholder="Dias" class="form-control form-control-sm d-inline w-50 mb-1" required>
-                                <button class="btn btn-sm btn-warning">−</button>
-                            </form>
-                            <form action="{{ url_for('bloquear', cliente_id=c[0]) }}" method="POST" class="d-inline">
-                                <button class="btn btn-sm btn-danger">Bloquear</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+<!-- 🔹 Barra de navegação superior -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top shadow-sm">
+    <div class="container-fluid">
+        <button class="toggle-btn" id="toggleSidebar">☰</button>
+        <a class="navbar-brand fw-bold" href="#">NV Sistema</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item"><a class="nav-link active" href="#">Início</a></li>
+                <li class="nav-item"><a class="nav-link" href="#">Clientes</a></li>
+                <li class="nav-item"><a class="nav-link" href="#">Licenças</a></li>
+                <li class="nav-item"><a class="nav-link text-danger" href="#">Sair</a></li>
+            </ul>
         </div>
     </div>
+</nav>
+
+<!-- 🔹 Barra lateral -->
+<div class="sidebar" id="sidebar">
+    <h5>Menu</h5>
+    <a href="#"><span class="icon">📊</span><span class="text">Painel</span></a>
+    <a href="#"><span class="icon">🧾</span><span class="text">Faturas</span></a>
+    <a href="#"><span class="icon">🔑</span><span class="text">Licenças</span></a>
+    <a href="#"><span class="icon">👥</span><span class="text">Clientes</span></a>
+    <a href="#"><span class="icon">⚙️</span><span class="text">Configurações</span></a>
+    <a href="#"><span class="icon">📦</span><span class="text">Atualizações</span></a>
+</div>
+
+<!-- 🔹 Conteúdo principal -->
+<div class="content" id="content">
+    <h3 class="text-center mb-4 mt-3">Painel de Licenças - NV Sistema</h3>
+
+    <table class="table table-striped table-hover shadow-sm align-middle">
+        <thead class="table-dark">
+            <tr>
+                <th>Empresa</th>
+                <th>Máquina ID</th>
+                <th>Chave</th>
+                <th>Data Início</th>
+                <th>Data Fim</th>
+                <th>Dias</th>
+                <th>Status</th>
+                <th>Última Sync</th>
+                <th class="text-center">Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in clientes %}
+            <tr>
+                <td>{{ c[1] }}</td>
+                <td>{{ c[2] }}</td>
+                <td>{{ c[3] }}</td>
+                <td>{{ c[4].strftime("%Y-%m-%d %H:%M:%S") if c[4] else "" }}</td>
+                <td>{{ (c[4] + timedelta(days=c[5])).strftime("%Y-%m-%d %H:%M:%S") if c[4] and c[5] else "" }}</td>
+                <td>{{ c[5] }}</td>
+                <td>
+                    {% if c[6] == 'ativo' %}
+                        <span class="badge bg-success">Ativo</span>
+                    {% else %}
+                        <span class="badge bg-danger">Bloqueado</span>
+                    {% endif %}
+                </td>
+                <td>{{ c[7].strftime("%Y-%m-%d %H:%M:%S") if c[7] else "" }}</td>
+                <td class="text-center">
+                    <div class="d-flex justify-content-center gap-1">
+                        <form action="{{ url_for('prolongar', cliente_id=c[0]) }}" method="POST" class="d-inline">
+                            <input type="number" name="dias" placeholder="Dias" class="form-control form-control-sm d-inline w-50 mb-1" required>
+                            <button class="btn btn-sm btn-primary w-100">Prolongar</button>
+                        </form>
+                        <form action="{{ url_for('diminuir', cliente_id=c[0]) }}" method="POST" class="d-inline">
+                            <input type="number" name="dias" placeholder="Dias" class="form-control form-control-sm d-inline w-50 mb-1" required>
+                            <button class="btn btn-sm btn-warning w-100 text-dark">Diminuir</button>
+                        </form>
+                        <form action="{{ url_for('bloquear', cliente_id=c[0]) }}" method="POST" class="d-inline">
+                            <button class="btn btn-sm btn-danger w-100">Bloquear</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    const toggleBtn = document.getElementById("toggleSidebar");
+    const sidebar = document.getElementById("sidebar");
+    const content = document.getElementById("content");
+
+    toggleBtn.addEventListener("click", () => {
+        sidebar.classList.toggle("collapsed");
+        content.classList.toggle("expanded");
+    });
+</script>
+
 </body>
 </html>
