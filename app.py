@@ -1,18 +1,16 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify, session
+from flask import Flask, render_template, request, redirect, url_for, jsonify
 import psycopg2
 from datetime import datetime, timedelta
-import os
 
 app = Flask(__name__)
-app.secret_key = "nv_sistema_licencas"  # necessário para sessões (logout)
 
-# ======== CONEXÃO COM O BANCO ========
+# ======== CONEXÃO COM O BANCO (Neon PostgreSQL) ========
 def conectar():
     return psycopg2.connect(
         "postgresql://neondb_owner:npg_cMnJsoUp74VW@ep-misty-dawn-agy72cae-pooler.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require"
     )
 
-# ======== CRIAR TABELA SE NÃO EXISTIR ========
+# ======== GARANTIR QUE A TABELA EXISTE ========
 def criar_tabela_clientes_nv():
     conn = conectar()
     cur = conn.cursor()
@@ -33,7 +31,7 @@ def criar_tabela_clientes_nv():
 
 criar_tabela_clientes_nv()
 
-# ======== PÁGINA PRINCIPAL (PAINEL DE LICENÇAS) ========
+# ======== PÁGINA PRINCIPAL ========
 @app.route("/")
 @app.route("/painel")
 def painel():
@@ -47,10 +45,12 @@ def painel():
     clientes = cur.fetchall()
     conn.close()
 
-    # Calcula a data final com base em data_inicio + dias
+    # Calcula a data de fim (data_inicio + dias)
     clientes_final = []
     for c in clientes:
-        data_fim = c[4] + timedelta(days=c[5]) if c[4] else None
+        data_inicio = c[4]
+        dias = c[5] or 0
+        data_fim = data_inicio + timedelta(days=dias) if data_inicio else None
         clientes_final.append(list(c) + [data_fim])
 
     return render_template("painel.html", clientes=clientes_final)
@@ -105,30 +105,7 @@ def bloquear(cliente_id):
     conn.close()
     return redirect(url_for("painel"))
 
-# ======== SAIR ========
-@app.route("/logout")
-def logout():
-    session.clear()
-    return redirect(url_for("painel"))
-
-# ======== OUTRAS PÁGINAS (placeholders) ========
-@app.route("/faturas")
-def faturas():
-    return "<h2 style='text-align:center;margin-top:40px;'>Página de Faturas (em construção)</h2>"
-
-@app.route("/clientes")
-def clientes():
-    return "<h2 style='text-align:center;margin-top:40px;'>Página de Clientes (em construção)</h2>"
-
-@app.route("/config")
-def config():
-    return "<h2 style='text-align:center;margin-top:40px;'>Página de Configurações (em construção)</h2>"
-
-@app.route("/atualizacoes")
-def atualizacoes():
-    return "<h2 style='text-align:center;margin-top:40px;'>Página de Atualizações (em construção)</h2>"
-
-# ======== API DE LICENÇAS ========
+# ======== API PARA REGISTRO AUTOMÁTICO DO NV SISTEMA ========
 @app.route("/api/licencas", methods=["POST"])
 def api_licencas():
     data = request.get_json()
@@ -155,7 +132,5 @@ def api_licencas():
 
     return jsonify({"ok": True})
 
-# ======== EXECUÇÃO ========
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(debug=True)
