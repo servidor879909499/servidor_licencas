@@ -1,8 +1,9 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify
+from flask import Flask, render_template, request, redirect, url_for, jsonify, flash
 import psycopg2
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
+app.secret_key = "sua_chave_secreta_aqui"  # Necessário para flash
 
 # ======== CONEXÃO COM O BANCO ========
 def conectar():
@@ -10,7 +11,7 @@ def conectar():
         "postgresql://neondb_owner:npg_cMnJsoUp74VW@ep-misty-dawn-agy72cae-pooler.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require"
     )
 
-# ======== CRIAR TABELA SE NÃO EXISTIR ========
+# ======== CRIAR TABELA ========
 def criar_tabela_clientes_nv():
     conn = conectar()
     cur = conn.cursor()
@@ -45,7 +46,6 @@ def painel():
     clientes = cur.fetchall()
     conn.close()
 
-    # Calcula a data de fim
     clientes_final = []
     for c in clientes:
         data_inicio = c[4]
@@ -55,50 +55,51 @@ def painel():
 
     return render_template("painel.html", clientes=clientes_final, title="Painel de Licenças NV Sistema")
 
-# ======== AÇÕES DE LICENÇA ========
+# ======== FUNÇÕES DE LICENÇA COM FEEDBACK ========
+def atualizar_cliente(cliente_id, dias_delta=0, status=None, action=None):
+    conn = conectar()
+    cur = conn.cursor()
+    if action == "prolongar":
+        cur.execute("""
+            UPDATE clientes_nv
+            SET dias = dias + %s, status='ativo', ultima_sync=%s
+            WHERE id=%s
+        """, (dias_delta, datetime.now(), cliente_id))
+        flash(f"Licença prolongada em {dias_delta} dias!", "success")
+    elif action == "diminuir":
+        cur.execute("""
+            UPDATE clientes_nv
+            SET dias = GREATEST(dias - %s, 0), ultima_sync=%s
+            WHERE id=%s
+        """, (dias_delta, datetime.now(), cliente_id))
+        flash(f"Licença diminuída em {dias_delta} dias!", "warning")
+    elif action == "bloquear":
+        cur.execute("""
+            UPDATE clientes_nv
+            SET status='bloqueado', ultima_sync=%s
+            WHERE id=%s
+        """, (datetime.now(), cliente_id))
+        flash("Licença bloqueada!", "danger")
+    conn.commit()
+    conn.close()
+
 @app.route("/prolongar/<int:cliente_id>", methods=["POST"])
 def prolongar(cliente_id):
     dias = int(request.form.get("dias", 0))
-    if dias <= 0:
-        return redirect(url_for("painel"))
-    conn = conectar()
-    cur = conn.cursor()
-    cur.execute("""
-        UPDATE clientes_nv
-        SET dias = dias + %s, status='ativo', ultima_sync=%s
-        WHERE id=%s
-    """, (dias, datetime.now(), cliente_id))
-    conn.commit()
-    conn.close()
+    if dias > 0:
+        atualizar_cliente(cliente_id, dias, action="prolongar")
     return redirect(url_for("painel"))
 
 @app.route("/diminuir/<int:cliente_id>", methods=["POST"])
 def diminuir(cliente_id):
     dias = int(request.form.get("dias", 0))
-    if dias <= 0:
-        return redirect(url_for("painel"))
-    conn = conectar()
-    cur = conn.cursor()
-    cur.execute("""
-        UPDATE clientes_nv
-        SET dias = GREATEST(dias - %s, 0), ultima_sync=%s
-        WHERE id=%s
-    """, (dias, datetime.now(), cliente_id))
-    conn.commit()
-    conn.close()
+    if dias > 0:
+        atualizar_cliente(cliente_id, dias, action="diminuir")
     return redirect(url_for("painel"))
 
 @app.route("/bloquear/<int:cliente_id>", methods=["POST"])
 def bloquear(cliente_id):
-    conn = conectar()
-    cur = conn.cursor()
-    cur.execute("""
-        UPDATE clientes_nv
-        SET status='bloqueado', ultima_sync=%s
-        WHERE id=%s
-    """, (datetime.now(), cliente_id))
-    conn.commit()
-    conn.close()
+    atualizar_cliente(cliente_id, action="bloquear")
     return redirect(url_for("painel"))
 
 # ======== ROTAS TEMPORÁRIAS PARA MENU ========
@@ -125,10 +126,10 @@ def atualizacoes():
 # ======== LOGOUT ========
 @app.route("/logout")
 def logout():
-    # Aqui você pode limpar sessão se houver login
+    flash("Você saiu do sistema.", "info")
     return redirect(url_for("painel"))
 
-# ======== API PARA REGISTRO AUTOMÁTICO ========
+# ======== API REGISTRO AUTOMÁTICO ========
 @app.route("/api/licencas", methods=["POST"])
 def api_licencas():
     data = request.get_json()
