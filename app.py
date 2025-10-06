@@ -4,13 +4,13 @@ from datetime import datetime, timedelta
 
 app = Flask(__name__)
 
-# ======== CONEXÃO COM O BANCO (Neon PostgreSQL) ========
+# ======== CONEXÃO COM O BANCO ========
 def conectar():
     return psycopg2.connect(
         "postgresql://neondb_owner:npg_cMnJsoUp74VW@ep-misty-dawn-agy72cae-pooler.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require"
     )
 
-# ======== GARANTIR QUE A TABELA EXISTE ========
+# ======== CRIAR TABELA SE NÃO EXISTIR ========
 def criar_tabela_clientes_nv():
     conn = conectar()
     cur = conn.cursor()
@@ -45,7 +45,7 @@ def painel():
     clientes = cur.fetchall()
     conn.close()
 
-    # Calcula a data de fim (data_inicio + dias)
+    # Calcula a data de fim
     clientes_final = []
     for c in clientes:
         data_inicio = c[4]
@@ -53,15 +53,14 @@ def painel():
         data_fim = data_inicio + timedelta(days=dias) if data_inicio else None
         clientes_final.append(list(c) + [data_fim])
 
-    return render_template("painel.html", clientes=clientes_final)
+    return render_template("painel.html", clientes=clientes_final, title="Painel de Licenças NV Sistema")
 
-# ======== PROLONGAR LICENÇA ========
+# ======== AÇÕES DE LICENÇA ========
 @app.route("/prolongar/<int:cliente_id>", methods=["POST"])
 def prolongar(cliente_id):
     dias = int(request.form.get("dias", 0))
     if dias <= 0:
         return redirect(url_for("painel"))
-
     conn = conectar()
     cur = conn.cursor()
     cur.execute("""
@@ -73,13 +72,11 @@ def prolongar(cliente_id):
     conn.close()
     return redirect(url_for("painel"))
 
-# ======== DIMINUIR LICENÇA ========
 @app.route("/diminuir/<int:cliente_id>", methods=["POST"])
 def diminuir(cliente_id):
     dias = int(request.form.get("dias", 0))
     if dias <= 0:
         return redirect(url_for("painel"))
-
     conn = conectar()
     cur = conn.cursor()
     cur.execute("""
@@ -91,7 +88,6 @@ def diminuir(cliente_id):
     conn.close()
     return redirect(url_for("painel"))
 
-# ======== BLOQUEAR LICENÇA ========
 @app.route("/bloquear/<int:cliente_id>", methods=["POST"])
 def bloquear(cliente_id):
     conn = conectar()
@@ -105,11 +101,37 @@ def bloquear(cliente_id):
     conn.close()
     return redirect(url_for("painel"))
 
-# ======== API PARA REGISTRO AUTOMÁTICO DO NV SISTEMA ========
+# ======== ROTAS TEMPORÁRIAS PARA MENU ========
+@app.route("/faturas")
+def faturas():
+    return "<h1>Faturas - Em desenvolvimento</h1>"
+
+@app.route("/licencas")
+def licencas():
+    return "<h1>Licenças - Em desenvolvimento</h1>"
+
+@app.route("/clientes")
+def clientes():
+    return "<h1>Clientes - Em desenvolvimento</h1>"
+
+@app.route("/configuracoes")
+def configuracoes():
+    return "<h1>Configurações - Em desenvolvimento</h1>"
+
+@app.route("/atualizacoes")
+def atualizacoes():
+    return "<h1>Atualizações - Em desenvolvimento</h1>"
+
+# ======== LOGOUT ========
+@app.route("/logout")
+def logout():
+    # Aqui você pode limpar sessão se houver login
+    return redirect(url_for("painel"))
+
+# ======== API PARA REGISTRO AUTOMÁTICO ========
 @app.route("/api/licencas", methods=["POST"])
 def api_licencas():
     data = request.get_json()
-
     conn = conectar()
     cur = conn.cursor()
     cur.execute("""
@@ -129,7 +151,6 @@ def api_licencas():
     ))
     conn.commit()
     conn.close()
-
     return jsonify({"ok": True})
 
 if __name__ == "__main__":
