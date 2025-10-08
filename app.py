@@ -55,6 +55,31 @@ def painel():
 
     return render_template("painel.html", clientes=clientes_final, title="Painel de Licenças NV Sistema")
 
+@app.route("/api/licencas", methods=["GET"])
+def listar_licencas():
+    """Retorna todas as licenças cadastradas"""
+    conn = conectar()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT empresa, maquina_id, chave_licenca, data_inicio, dias, status
+        FROM clientes_nv
+    """)
+    licencas = cur.fetchall()
+    conn.close()
+
+    lista = []
+    for l in licencas:
+        lista.append({
+            "empresa": l[0],
+            "maquina_id": l[1],
+            "chave_licenca": l[2],
+            "data_inicio": l[3].strftime("%Y-%m-%d %H:%M:%S") if l[3] else None,
+            "dias": l[4],
+            "status": l[5]
+        })
+    return jsonify(lista)
+
+
 # ======== FUNÇÕES DE LICENÇA COM FEEDBACK ========
 def atualizar_cliente(cliente_id, dias_delta=0, status=None, action=None):
     conn = conectar()
