@@ -85,18 +85,31 @@ body { background-color: #f8f9fa; overflow-x: hidden; }
 <td>{% if c[6] == 'ativo' %}<span class="badge bg-success">Ativo</span>{% else %}<span class="badge bg-danger">Bloqueado</span>{% endif %}</td>
 <td>{{ c[7].strftime("%Y-%m-%d %H:%M:%S") if c[7] else "" }}</td>
 <td class="text-center">
-<div class="d-flex justify-content-center gap-1">
-<form action="{{ url_for('prolongar', cliente_id=c[0]) }}" method="POST" class="d-inline">
-<input type="number" name="dias" placeholder="Dias" class="form-control form-control-sm d-inline w-50 mb-1" required>
-<button class="btn btn-sm btn-primary w-100">Prolongar</button>
-</form>
-<form action="{{ url_for('diminuir', cliente_id=c[0]) }}" method="POST" class="d-inline">
-<input type="number" name="dias" placeholder="Dias" class="form-control form-control-sm d-inline w-50 mb-1" required>
-<button class="btn btn-sm btn-warning w-100 text-dark">Diminuir</button>
-</form>
-<form action="{{ url_for('bloquear', cliente_id=c[0]) }}" method="POST" class="d-inline">
-<button class="btn btn-sm btn-danger w-100">Bloquear</button>
-</form>
+<div class="d-flex justify-content-center gap-1 flex-wrap">
+
+  <!-- Prolongar -->
+  <form action="{{ url_for('prolongar', cliente_id=c[0]) }}" method="POST" class="d-inline">
+    <input type="number" name="dias" placeholder="Dias" class="form-control form-control-sm mb-1" required>
+    <button class="btn btn-sm btn-primary w-100">Prolongar</button>
+  </form>
+
+  <!-- Diminuir -->
+  <form action="{{ url_for('diminuir', cliente_id=c[0]) }}" method="POST" class="d-inline">
+    <input type="number" name="dias" placeholder="Dias" class="form-control form-control-sm mb-1" required>
+    <button class="btn btn-sm btn-warning w-100 text-dark">Diminuir</button>
+  </form>
+
+  <!-- Bloquear -->
+  <form action="{{ url_for('bloquear', cliente_id=c[0]) }}" method="POST" class="d-inline">
+    <button class="btn btn-sm btn-secondary w-100">Bloquear</button>
+  </form>
+
+  <!-- Remover -->
+  <form action="{{ url_for('remover', cliente_id=c[0]) }}" method="POST" class="d-inline"
+        onsubmit="return confirm('Tem certeza que deseja remover esta empresa? Esta ação não pode ser desfeita.');">
+    <button class="btn btn-sm btn-danger w-100">Remover</button>
+  </form>
+
 </div>
 </td>
 </tr>
