@@ -12,7 +12,7 @@ from email import encoders
 from apscheduler.schedulers.background import BackgroundScheduler
 
 app = Flask(__name__)
-app.secret_key = "sua_chave_secreta_aqui"  # altere para algo seguro em produção
+app.secret_key = "sua_chave_secreta_aqui"
 
 # ======== CONEXÃO COM O BANCO ========
 def conectar():
@@ -24,7 +24,7 @@ def conectar():
 def criar_tabelas_essenciais():
     conn = conectar()
     cur = conn.cursor()
-    # tabela clientes_nv (se não existir)
+    # tabela clientes_nv
     cur.execute("""
         CREATE TABLE IF NOT EXISTS clientes_nv (
             id SERIAL PRIMARY KEY,
@@ -34,15 +34,11 @@ def criar_tabelas_essenciais():
             data_inicio TIMESTAMP,
             dias INTEGER,
             status TEXT,
-            ultima_sync TIMESTAMP
+            ultima_sync TIMESTAMP,
+            email TEXT
         )
     """)
-    # tenta adicionar coluna email, se não existir
-    try:
-        cur.execute("ALTER TABLE clientes_nv ADD COLUMN email TEXT")
-    except Exception:
-        conn.rollback()
-    # configuracoes (chave, valor)
+    # tabela configuracoes
     cur.execute("""
         CREATE TABLE IF NOT EXISTS configuracoes (
             id SERIAL PRIMARY KEY,
@@ -87,7 +83,7 @@ def set_config(chave, valor):
     conn.commit()
     conn.close()
 
-# ======== ROTEAMENTO PRINCIPAL (painel) ========
+# ======== PAINEL PRINCIPAL ========
 @app.route("/")
 @app.route("/painel")
 def painel():
@@ -110,32 +106,7 @@ def painel():
 
     return render_template("painel.html", clientes=clientes_final, title="Painel de Licenças NV Sistema")
 
-# ======== API: LISTAR LICENÇAS ========
-@app.route("/api/licencas", methods=["GET"])
-def listar_licencas():
-    conn = conectar()
-    cur = conn.cursor()
-    cur.execute("""
-        SELECT empresa, maquina_id, chave_licenca, data_inicio, dias, status, email
-        FROM clientes_nv
-    """)
-    licencas = cur.fetchall()
-    conn.close()
-
-    lista = []
-    for l in licencas:
-        lista.append({
-            "empresa": l[0],
-            "maquina_id": l[1],
-            "chave_licenca": l[2],
-            "data_inicio": l[3].strftime("%Y-%m-%d %H:%M:%S") if l[3] else None,
-            "dias": l[4],
-            "status": l[5],
-            "email": l[6]
-        })
-    return jsonify(lista)
-
-# ======== FUNÇÕES DE LICENÇA (atualizar) ========
+# ======== FUNÇÕES DE LICENÇA ========
 def atualizar_cliente(cliente_id, dias_delta=0, status=None, action=None):
     conn = conectar()
     cur = conn.cursor()
@@ -182,7 +153,6 @@ def bloquear(cliente_id):
     atualizar_cliente(cliente_id, action="bloquear")
     return redirect(url_for("painel"))
 
-# ======== REMOVER EMPRESA ========
 @app.route("/remover/<int:cliente_id>", methods=["POST"])
 def remover(cliente_id):
     conn = conectar()
@@ -193,7 +163,7 @@ def remover(cliente_id):
     flash("Empresa removida com sucesso!", "success")
     return redirect(url_for("painel"))
 
-# ======== ROTAS: CONFIGURAÇÕES (empresa + smtp) ========
+# ======== CONFIGURAÇÕES ========
 @app.route("/configuracoes", methods=["GET", "POST"])
 def configuracoes():
     if request.method == "POST":
@@ -201,13 +171,13 @@ def configuracoes():
         set_config("empresa_nuit", request.form.get("empresa_nuit", ""))
         set_config("empresa_email", request.form.get("empresa_email", "bnsevicoslda@gmail.com"))
         set_config("empresa_telefone", request.form.get("empresa_telefone", "+258 844 648 689; +258 879 909 499"))
-        # SMTP
         set_config("smtp_host", request.form.get("smtp_host", "smtp.gmail.com"))
         set_config("smtp_port", request.form.get("smtp_port", "587"))
         set_config("smtp_user", request.form.get("smtp_user", ""))
         set_config("smtp_pass", request.form.get("smtp_pass", ""))
         flash("Configurações salvas.", "success")
         return redirect(url_for("configuracoes"))
+
     configs = {
         "empresa_nome": get_config("empresa_nome", "B&N SERVICOS LDA"),
         "empresa_nuit": get_config("empresa_nuit", ""),
@@ -220,10 +190,9 @@ def configuracoes():
     }
     return render_template("configuracoes.html", configs=configs)
 
-# ======== ROTAS: Faturas ========
+# ======== Faturas ========
 @app.route("/faturas")
 def faturas():
-    # lista faturas agendadas e clientes
     conn = conectar()
     cur = conn.cursor()
     cur.execute("""
@@ -233,11 +202,10 @@ def faturas():
         ORDER BY f.proxima_envio
     """)
     rows = cur.fetchall()
-    # lista de clientes para select
     cur.execute("SELECT id, empresa, email FROM clientes_nv ORDER BY empresa")
     clientes = cur.fetchall()
     conn.close()
-    return render_template("faturas.html", faturas=rows, clientes=clientes)
+    return render_template("faturas.html", faturas=rows, clientes=clientes, title="Faturas")
 
 @app.route("/faturas/agendar", methods=["POST"])
 def agendar_fatura():
@@ -254,10 +222,7 @@ def agendar_fatura():
     cur = conn.cursor()
     cur.execute("SELECT email FROM clientes_nv WHERE id = %s", (cliente_id,))
     row = cur.fetchone()
-    if row and row[0]:
-        email_cliente = row[0]
-    else:
-        email_cliente = email_cliente_form
+    email_cliente = row[0] if row and row[0] else email_cliente_form
 
     try:
         proxima = datetime.strptime(dia_emissao, "%Y-%m-%d").replace(hour=9, minute=0, second=0)
@@ -285,42 +250,60 @@ def cancelar_fatura(fatura_id):
     flash("Fatura agendada cancelada.", "info")
     return redirect(url_for("faturas"))
 
-# ======== API REGISTRO AUTOMÁTICO (recebe licenças) ========
-@app.route("/api/licencas", methods=["POST"])
+# ======== API: licenças ========
+@app.route("/api/licencas", methods=["GET", "POST"])
 def api_licencas():
-    data = request.get_json()
-    conn = conectar()
-    cur = conn.cursor()
-    email = data.get("email")
-    data_inicio = None
-    try:
-        if data.get("data_inicio"):
-            data_inicio = datetime.strptime(data["data_inicio"], "%Y-%m-%d %H:%M:%S")
-    except Exception:
+    if request.method == "GET":
+        conn = conectar()
+        cur = conn.cursor()
+        cur.execute("SELECT empresa, maquina_id, chave_licenca, data_inicio, dias, status, email FROM clientes_nv")
+        licencas = cur.fetchall()
+        conn.close()
+        lista = []
+        for l in licencas:
+            lista.append({
+                "empresa": l[0],
+                "maquina_id": l[1],
+                "chave_licenca": l[2],
+                "data_inicio": l[3].strftime("%Y-%m-%d %H:%M:%S") if l[3] else None,
+                "dias": l[4],
+                "status": l[5],
+                "email": l[6]
+            })
+        return jsonify(lista)
+    else:
+        data = request.get_json()
+        conn = conectar()
+        cur = conn.cursor()
+        email = data.get("email")
         data_inicio = None
+        try:
+            if data.get("data_inicio"):
+                data_inicio = datetime.strptime(data["data_inicio"], "%Y-%m-%d %H:%M:%S")
+        except Exception:
+            data_inicio = None
 
-    cur.execute("""
-        INSERT INTO clientes_nv (empresa, maquina_id, chave_licenca, data_inicio, dias, status, ultima_sync, email)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        ON CONFLICT (maquina_id)
-        DO UPDATE SET empresa=EXCLUDED.empresa, chave_licenca=EXCLUDED.chave_licenca,
-                      dias=EXCLUDED.dias, status=EXCLUDED.status, ultima_sync=EXCLUDED.ultima_sync,
-                      email=COALESCE(EXCLUDED.email, clientes_nv.email)
-    """, (
-        data.get("empresa"),
-        data.get("maquina_id"),
-        data.get("chave_licenca"),
-        data_inicio,
-        data.get("dias", 30),
-        data.get("status", "ativo"),
-        datetime.now(),
-        email
-    ))
-    conn.commit()
-    conn.close()
-    return jsonify({"ok": True})
+        cur.execute("""
+            INSERT INTO clientes_nv (empresa, maquina_id, chave_licenca, data_inicio, dias, status, ultima_sync, email)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (maquina_id)
+            DO UPDATE SET empresa=EXCLUDED.empresa, chave_licenca=EXCLUDED.chave_licenca,
+                          dias=EXCLUDED.dias, status=EXCLUDED.status, ultima_sync=EXCLUDED.ultima_sync,
+                          email=COALESCE(EXCLUDED.email, clientes_nv.email)
+        """, (
+            data.get("empresa"),
+            data.get("maquina_id"),
+            data.get("chave_licenca"),
+            data_inicio,
+            data.get("dias", 30),
+            data.get("status", "ativo"),
+            datetime.now(),
+            email
+        ))
+        conn.commit()
+        conn.close()
+        return jsonify({"ok": True})
 
-# ======== API GET para licença por maquina_id ========
 @app.route("/api/licencas/<maquina_id>", methods=["GET"])
 def buscar_licenca(maquina_id):
     conn = conectar()
@@ -332,7 +315,6 @@ def buscar_licenca(maquina_id):
     """, (maquina_id,))
     licenca = cur.fetchone()
     conn.close()
-
     if licenca:
         return jsonify({
             "empresa": licenca[0],
@@ -345,7 +327,7 @@ def buscar_licenca(maquina_id):
         })
     return jsonify({"error": "Licença não encontrada"}), 404
 
-# ======== GERAÇÃO DE PDF E ENVIO DE EMAIL ========
+# ======== PDF e Email ========
 def gerar_pdf_fatura(empresa_info, cliente_info, valor, referencia):
     buffer = io.BytesIO()
     p = rcanvas(buffer, pagesize=A4)
@@ -418,7 +400,7 @@ def enviar_email_com_anexo(destinatario, assunto, corpo_html, anexo_bytes, anexo
         app.logger.exception("Erro ao enviar e-mail: %s", e)
         return False
 
-# ======== JOB: verificar faturas e enviar ========
+# ======== JOB: enviar faturas ========
 def verificar_e_enviar_faturas():
     app.logger.info("Verificando faturas agendadas para envio...")
     conn = conectar()
@@ -432,12 +414,11 @@ def verificar_e_enviar_faturas():
     rows = cur.fetchall()
     for row in rows:
         f_id, cliente_id, email_cliente, valor, proxima_envio = row
-        # buscar cliente
         cur.execute("SELECT empresa, email FROM clientes_nv WHERE id = %s", (cliente_id,))
         cliente = cur.fetchone()
         cliente_nome = cliente[0] if cliente else "Cliente"
         cliente_email = cliente[1] or email_cliente
-        # empresa
+
         empresa_info = {
             "nome": get_config("empresa_nome", "B&N SERVICOS LDA"),
             "nuit": get_config("empresa_nuit", ""),
@@ -446,12 +427,12 @@ def verificar_e_enviar_faturas():
         }
         cliente_info = {"empresa": cliente_nome, "email": cliente_email}
         referencia = f"FAT-{f_id}-{proxima_envio.strftime('%Y%m%d')}"
-        # gerar pdf
         try:
             pdf_bytes = gerar_pdf_fatura(empresa_info, cliente_info, float(valor), referencia)
         except Exception as e:
             app.logger.exception("Erro gerando PDF: %s", e)
             continue
+
         corpo = f"""
             <p>Olá {cliente_nome},</p>
             <p>Segue anexo a fatura de cobrança referente ao serviço mensal. Valor: <strong>{float(valor):.2f} MZN</strong>.</p>
@@ -461,7 +442,6 @@ def verificar_e_enviar_faturas():
             enviado = enviar_email_com_anexo(cliente_email, f"Fatura - {empresa_info['nome']}", corpo, pdf_bytes, f"{referencia}.pdf")
             if enviado:
                 app.logger.info("Fatura %s enviada para %s", f_id, cliente_email)
-                # adicionar 1 mês simples (30 dias) para próxima
                 proxima_nova = proxima_envio + timedelta(days=30)
                 cur.execute("UPDATE faturas_agendadas SET proxima_envio = %s WHERE id = %s", (proxima_nova, f_id))
                 conn.commit()
@@ -471,23 +451,10 @@ def verificar_e_enviar_faturas():
             app.logger.warning("Fatura %s sem email do cliente (id=%s)", f_id, cliente_id)
     conn.close()
 
-# inicializa scheduler (checa a cada 60s - bom para testes; em produção use cron/worker separado)
+# ======== Scheduler ========
 scheduler = BackgroundScheduler()
 scheduler.add_job(func=verificar_e_enviar_faturas, trigger="interval", seconds=60)
 scheduler.start()
-
-# ======== ROTAS TEMPORÁRIAS MANTIDAS ========
-@app.route("/licencas")
-def licencas():
-    return "<h1>Licenças - Em desenvolvimento</h1>"
-
-@app.route("/clientes")
-def clientes():
-    return "<h1>Clientes - Em desenvolvimento</h1>"
-
-@app.route("/atualizacoes")
-def atualizacoes():
-    return "<h1>Atualizações - Em desenvolvimento</h1>"
 
 # ======== LOGOUT ========
 @app.route("/logout")
@@ -495,7 +462,7 @@ def logout():
     flash("Você saiu do sistema.", "info")
     return redirect(url_for("painel"))
 
-# ======== FINAL ========
+# ======== RUN ========
 if __name__ == "__main__":
     try:
         app.run(debug=True)
