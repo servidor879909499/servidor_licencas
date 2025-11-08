@@ -55,6 +55,7 @@ def painel():
 
     return render_template("painel.html", clientes=clientes_final, title="Painel de Licenças NV Sistema")
 
+# ======== API: LISTAR LICENÇAS ========
 @app.route("/api/licencas", methods=["GET"])
 def listar_licencas():
     """Retorna todas as licenças cadastradas"""
@@ -127,6 +128,20 @@ def bloquear(cliente_id):
     atualizar_cliente(cliente_id, action="bloquear")
     return redirect(url_for("painel"))
 
+
+# ======== NOVA FUNÇÃO: REMOVER EMPRESA ========
+@app.route("/remover/<int:cliente_id>", methods=["POST"])
+def remover(cliente_id):
+    """Remove uma empresa do banco de dados"""
+    conn = conectar()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM clientes_nv WHERE id = %s", (cliente_id,))
+    conn.commit()
+    conn.close()
+    flash("Empresa removida com sucesso!", "success")
+    return redirect(url_for("painel"))
+
+
 # ======== ROTAS TEMPORÁRIAS PARA MENU ========
 @app.route("/faturas")
 def faturas():
@@ -148,11 +163,13 @@ def configuracoes():
 def atualizacoes():
     return "<h1>Atualizações - Em desenvolvimento</h1>"
 
+
 # ======== LOGOUT ========
 @app.route("/logout")
 def logout():
     flash("Você saiu do sistema.", "info")
     return redirect(url_for("painel"))
+
 
 # ======== API REGISTRO AUTOMÁTICO ========
 @app.route("/api/licencas", methods=["POST"])
@@ -180,6 +197,7 @@ def api_licencas():
     conn.close()
     return jsonify({"ok": True})
 
+
 # ======== NOVA ROTA GET PARA BUSCAR LICENÇA ========
 @app.route("/api/licencas/<maquina_id>", methods=["GET"])
 def buscar_licenca(maquina_id):
@@ -205,5 +223,7 @@ def buscar_licenca(maquina_id):
         })
     return jsonify({"error": "Licença não encontrada"}), 404
 
+
+# ======== INICIALIZAÇÃO ========
 if __name__ == "__main__":
     app.run(debug=True)
