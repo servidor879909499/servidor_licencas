@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="utf-8">
+  <title>Faturas - NV Sistema</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<div class="container py-4">
+  <h3>Faturas Agendadas</h3>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <h5>Agendar nova fatura</h5>
+      <form method="POST" action="{{ url_for('agendar_fatura') }}" class="row g-2 align-items-end">
+        <div class="col-md-5">
+          <label class="form-label">Cliente</label>
+          <select name="cliente_id" class="form-select">
+            <option value="">-- selecione --</option>
+            {% for c in clientes %}
+              <option value="{{ c[0] }}">{{ c[1] }} {% if c[2] %} ({{ c[2] }}){% endif %}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Email do Cliente (opcional se salvo no servidor)</label>
+          <input name="email_cliente" class="form-control" placeholder="cliente@exemplo.com">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Valor (MZN)</label>
+          <input name="valor" class="form-control" type="number" step="0.01" required>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Data de Emissão (YYYY-MM-DD)</label>
+          <input name="dia_emissao" class="form-control" type="date" required>
+        </div>
+        <div class="col-md-3">
+          <button class="btn btn-primary">Agendar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <h5>Agendamentos existentes</h5>
+  <table class="table table-striped">
+    <thead class="table-dark">
+      <tr>
+        <th>ID</th>
+        <th>Cliente</th>
+        <th>Email</th>
+        <th>Valor</th>
+        <th>Próximo Envio</th>
+        <th>Ativo</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for f in faturas %}
+        <tr>
+          <td>{{ f[0] }}</td>
+          <td>{{ f[2] }}</td>
+          <td>{{ f[3] }}</td>
+          <td>{{ "%.2f"|format(f[4]) }}</td>
+          <td>{{ f[6].strftime("%Y-%m-%d %H:%M:%S") if f[6] else "-" }}</td>
+          <td>{{ "Sim" if f[7] else "Não" }}</td>
+          <td>
+            {% if f[7] %}
+            <form method="POST" action="{{ url_for('cancelar_fatura', fatura_id=f[0]) }}" style="display:inline;"
+                  onsubmit="return confirm('Cancelar este agendamento?');">
+              <button class="btn btn-sm btn-danger">Cancelar</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="7" class="text-center">Nenhuma fatura agendada.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <a class="btn btn-secondary" href="{{ url_for('painel') }}">Voltar</a>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
