@@ -104,6 +104,9 @@ body { background-color: #f8f9fa; overflow-x: hidden; }
     <button class="btn btn-sm btn-secondary w-100">Bloquear</button>
   </form>
 
+  <!-- Emitir Fatura -->
+  <button class="btn btn-sm btn-info w-100" data-bs-toggle="modal" data-bs-target="#faturaModal{{ c[0] }}">Emitir Fatura</button>
+
   <!-- Remover -->
   <form action="{{ url_for('remover', cliente_id=c[0]) }}" method="POST" class="d-inline"
         onsubmit="return confirm('Tem certeza que deseja remover esta empresa? Esta ação não pode ser desfeita.');">
@@ -113,6 +116,47 @@ body { background-color: #f8f9fa; overflow-x: hidden; }
 </div>
 </td>
 </tr>
+
+<!-- Modal de Fatura -->
+<div class="modal fade" id="faturaModal{{ c[0] }}" tabindex="-1" aria-labelledby="faturaModalLabel{{ c[0] }}" aria-hidden="true">
+  <div class="modal-dialog">
+    <form action="{{ url_for('emitir_fatura', cliente_id=c[0]) }}" method="POST">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="faturaModalLabel{{ c[0] }}">Emitir Fatura - {{ c[1] }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label>Cliente</label>
+            <input type="text" class="form-control" value="{{ c[1] }}" readonly>
+          </div>
+          <div class="mb-3">
+            <label>Email</label>
+            <input type="email" class="form-control" name="email_cliente" value="{{ c[9] if c|length > 9 else '' }}" required>
+          </div>
+          <div class="mb-3">
+            <label>Valor Mensal (MZN)</label>
+            <input type="number" class="form-control" name="valor_mensal" required>
+          </div>
+          <div class="mb-3">
+            <label>Data de Emissão</label>
+            <input type="date" class="form-control" name="data_emissao" required>
+          </div>
+          <div class="mb-3">
+            <label>Data de Envio</label>
+            <input type="date" class="form-control" name="data_envio" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar & Enviar</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
 {% endfor %}
 </tbody>
 </table>
