@@ -24,6 +24,7 @@ def conectar():
 def criar_tabelas_essenciais():
     conn = conectar()
     cur = conn.cursor()
+
     # tabela clientes_nv
     cur.execute("""
         CREATE TABLE IF NOT EXISTS clientes_nv (
@@ -38,6 +39,7 @@ def criar_tabelas_essenciais():
             email TEXT
         )
     """)
+
     # tabela configuracoes
     cur.execute("""
         CREATE TABLE IF NOT EXISTS configuracoes (
@@ -46,6 +48,7 @@ def criar_tabelas_essenciais():
             valor TEXT
         )
     """)
+
     # faturas agendadas
     cur.execute("""
         CREATE TABLE IF NOT EXISTS faturas_agendadas (
@@ -56,9 +59,29 @@ def criar_tabelas_essenciais():
             dia_emissao DATE,
             proxima_envio TIMESTAMP,
             ativo BOOLEAN DEFAULT TRUE,
+            estado_pagamento TEXT DEFAULT 'pendente',
             criado_em TIMESTAMP DEFAULT NOW()
         )
     """)
+
+    # ======== NOVAS COLUNAS PAGAMENTOS ========
+
+    novas_colunas = [
+        ("referencia_pagamento", "TEXT"),
+        ("transacao_id", "TEXT"),
+        ("ativa", "BOOLEAN DEFAULT TRUE"),
+        ("ultimo_pagamento", "TIMESTAMP")
+    ]
+
+    for coluna, tipo in novas_colunas:
+        try:
+            cur.execute(f"""
+                ALTER TABLE clientes_nv
+                ADD COLUMN IF NOT EXISTS {coluna} {tipo}
+            """)
+        except Exception as e:
+            print(f"Erro ao criar coluna {coluna}: {e}")
+
     conn.commit()
     conn.close()
 
