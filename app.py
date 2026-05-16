@@ -382,6 +382,30 @@ def api_licencas():
         conn.close()
         return jsonify({"ok": True})
 
+@app.route("/debug_db")
+def debug_db():
+
+    conn = conectar()
+    cur = conn.cursor()
+
+    cur.execute("SELECT current_database()")
+    db = cur.fetchone()[0]
+
+    cur.execute("""
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema='public'
+    """)
+
+    tabelas = [r[0] for r in cur.fetchall()]
+
+    conn.close()
+
+    return {
+        "database": db,
+        "tabelas": tabelas
+    }
+
 @app.route("/api/licencas/<maquina_id>", methods=["GET"])
 def buscar_licenca(maquina_id):
     conn = conectar()
