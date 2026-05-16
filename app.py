@@ -66,11 +66,15 @@ def criar_tabelas_essenciais():
     # ======== NOVAS COLUNAS PAGAMENTOS ========
 
     novas_colunas = [
+        ("email", "TEXT"),
         ("referencia_pagamento", "TEXT"),
         ("transacao_id", "TEXT"),
         ("ativa", "BOOLEAN DEFAULT TRUE"),
+        ("ultimo_pagamento", "TIMESTAMP"),
         ("estado_pagamento", "TEXT DEFAULT 'pendente'"),
-        ("ultimo_pagamento", "TIMESTAMP")
+        ("operadora", "TEXT"),
+        ("valor_pagamento", "NUMERIC"),
+        ("valor_mensal", "NUMERIC DEFAULT 0")
     ]
 
     for coluna, tipo in novas_colunas:
@@ -84,6 +88,7 @@ def criar_tabelas_essenciais():
 
     conn.commit()
     conn.close()
+
 criar_tabelas_essenciais()
 
 # ======== UTILITÁRIOS DE CONFIG ========
@@ -112,7 +117,9 @@ def painel():
     conn = conectar()
     cur = conn.cursor()
     cur.execute("""
-        SELECT id, empresa, maquina_id, chave_licenca, data_inicio, dias, status, ultima_sync, email
+        SELECT id, empresa, maquina_id, chave_licenca,
+            data_inicio, dias, status,
+            ultima_sync, email, valor_mensal
         FROM clientes_nv
         ORDER BY empresa
     """)
@@ -124,7 +131,19 @@ def painel():
         data_inicio = c[4]
         dias = c[5] or 0
         data_fim = data_inicio + timedelta(days=dias) if data_inicio else None
-        clientes_final.append(list(c) + [data_fim])
+        clientes_final.append([
+            c[0],   # id
+            c[1],   # empresa
+            c[2],   # maquina_id
+            c[3],   # chave_licenca
+            c[4],   # data_inicio
+            c[5],   # dias
+            c[6],   # status
+            c[7],   # ultima_sync
+            c[8],   # email
+            c[9],   # valor_mensal
+            data_fim
+        ])
 
     return render_template("painel.html", clientes=clientes_final, title="Painel de Licenças NV Sistema")
 
@@ -274,11 +293,48 @@ def cancelar_fatura(fatura_id):
 
 # ======== API: licenças ========
 @app.route("/api/licencas", methods=["GET", "POST"])
+
+@app.route("/licencas")
+def licencas():
+
+    conn = conectar()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT id, empresa, maquina_id, chave_licenca,
+               data_inicio, dias, status,
+               ultima_sync, email, valor_mensal
+        FROM clientes_nv
+        ORDER BY empresa
+    """)
+
+    clientes = cur.fetchall()
+    conn.close()
+
+    clientes_final = []
+
+    for c in clientes:
+        data_inicio = c[4]
+        dias = c[5] or 0
+        data_fim = data_inicio + timedelta(days=dias) if data_inicio else None
+
+        clientes_final.append([
+            c[0], c[1], c[2], c[3], c[4],
+            c[5], c[6], c[7], c[8], c[9],
+            data_fim
+        ])
+
+    return render_template(
+        "licencas.html",
+        clientes=clientes_final,
+        title="Licenças"
+    )
+
 def api_licencas():
     if request.method == "GET":
         conn = conectar()
         cur = conn.cursor()
-        cur.execute("SELECT empresa, maquina_id, chave_licenca, data_inicio, dias, status, email FROM clientes_nv")
+        cur.execute("SELECT empresa, maquina_id, chave_licenca, data_inicio, dias, status, email, valor_mensal FROM clientes_nv")
         licencas = cur.fetchall()
         conn.close()
         lista = []
@@ -349,6 +405,63 @@ def buscar_licenca(maquina_id):
         })
     return jsonify({"error": "Licença não encontrada"}), 404
 
+# ======== API PAGAMENTOS ========
+
+@app.route("/api/pagamento/iniciar", methods=["POST"])
+def iniciar_pagamento_api():
+    try:
+        data = request.get_json()
+
+        chave = data.get("chave_licenca")
+        numero = data.get("numero")
+        operadora = data.get("operadora")
+        valor = data.get("valor")
+
+        if not chave or not numero or not operadora or not valor:
+            return jsonify({
+                "sucesso": False,
+                "mensagem": "Dados incompletos"
+            }), 400
+
+        transacao_id = f"TX-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+
+        conn = conectar()
+        cur = conn.cursor()
+
+        cur.execute("""
+            UPDATE clientes_nv
+            SET referencia_pagamento = %s,
+                transacao_id = %s,
+                status = 'pendente',
+                ultima_sync = %s
+            WHERE chave_licenca = %s
+        """, (
+            numero,
+            transacao_id,
+            datetime.now(),
+            chave
+        ))
+
+        conn.commit()
+        conn.close()
+
+        # ==================================================
+        # FUTURAMENTE:
+        # AQUI ENTRA API REAL MOVITEL / MPESA
+        # ==================================================
+
+        return jsonify({
+            "sucesso": True,
+            "mensagem": "Pedido enviado. Confirme no telemóvel.",
+            "transacao_id": transacao_id
+        })
+
+    except Exception as e:
+        return jsonify({
+            "sucesso": False,
+            "mensagem": str(e)
+        }), 500
+
 # ======== PDF e Email ========
 def gerar_pdf_fatura(empresa_info, cliente_info, valor, referencia):
     buffer = io.BytesIO()
@@ -399,29 +512,67 @@ def iniciar_pagamento():
         chave = data.get("chave_licenca")
         numero = data.get("numero")
         operadora = data.get("operadora")
-        valor = data.get("valor")
 
-        if not chave or not numero or not operadora or not valor:
+        if not chave or not numero or not operadora:
             return jsonify({
                 "sucesso": False,
                 "mensagem": "Dados incompletos"
             }), 400
 
-        transacao_id = f"TX-{datetime.now().strftime('%Y%m%d%H%M%S')}"
-
         conn = conectar()
         cur = conn.cursor()
+
+        # ==================================================
+        # BUSCAR VALOR DIRETAMENTE DO BANCO
+        # ==================================================
+
+        cur.execute("""
+            SELECT valor_mensal
+            FROM clientes_nv
+            WHERE chave_licenca = %s
+        """, (chave,))
+
+        row = cur.fetchone()
+
+        if not row:
+            conn.close()
+
+            return jsonify({
+                "sucesso": False,
+                "mensagem": "Licença não encontrada"
+            }), 404
+
+        valor = float(row[0] or 0)
+
+        if valor <= 0:
+            conn.close()
+
+            return jsonify({
+                "sucesso": False,
+                "mensagem": "Valor mensal inválido"
+            }), 400
+
+        transacao_id = f"TX-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+
+        # ==================================================
+        # ATUALIZAR DADOS PAGAMENTO
+        # ==================================================
 
         cur.execute("""
             UPDATE clientes_nv
             SET referencia_pagamento = %s,
                 transacao_id = %s,
+                operadora = %s,
+                valor_pagamento = %s,
+                estado_pagamento = 'pendente',
                 status = 'pendente',
                 ultima_sync = %s
             WHERE chave_licenca = %s
         """, (
             numero,
             transacao_id,
+            operadora,
+            valor,
             datetime.now(),
             chave
         ))
@@ -436,8 +587,9 @@ def iniciar_pagamento():
 
         return jsonify({
             "sucesso": True,
-            "mensagem": "Pedido enviado. Confirme no telemóvel.",
-            "transacao_id": transacao_id
+            "mensagem": f"Pedido enviado para {numero}. Confirme o pagamento de {valor} MZN no telemóvel.",
+            "transacao_id": transacao_id,
+            "valor": valor
         })
 
     except Exception as e:
@@ -539,6 +691,39 @@ scheduler.start()
 @app.route("/logout")
 def logout():
     flash("Você saiu do sistema.", "info")
+    return redirect(url_for("painel"))
+
+@app.route("/teste_pagamento")
+def teste_pagamento():
+    return jsonify({
+        "status": "ok",
+        "mensagem": "API pagamento funcionando"
+    })
+
+@app.route("/atualizar_valor/<int:cliente_id>", methods=["POST"])
+def atualizar_valor(cliente_id):
+
+    valor = request.form.get("valor_mensal", 0)
+
+    conn = conectar()
+    cur = conn.cursor()
+
+    cur.execute("""
+        UPDATE clientes_nv
+        SET valor_mensal = %s,
+            ultima_sync = %s
+        WHERE id = %s
+    """, (
+        valor,
+        datetime.now(),
+        cliente_id
+    ))
+
+    conn.commit()
+    conn.close()
+
+    flash("Valor mensal atualizado com sucesso!", "success")
+
     return redirect(url_for("painel"))
 
 # ======== RUN ========
