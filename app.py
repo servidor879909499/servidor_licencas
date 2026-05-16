@@ -24,6 +24,7 @@ def conectar():
 def criar_tabelas_essenciais():
     conn = conectar()
     cur = conn.cursor()
+
     # tabela clientes_nv
     cur.execute("""
         CREATE TABLE IF NOT EXISTS clientes_nv (
@@ -38,6 +39,7 @@ def criar_tabelas_essenciais():
             email TEXT
         )
     """)
+
     # tabela configuracoes
     cur.execute("""
         CREATE TABLE IF NOT EXISTS configuracoes (
@@ -46,6 +48,7 @@ def criar_tabelas_essenciais():
             valor TEXT
         )
     """)
+
     # faturas agendadas
     cur.execute("""
         CREATE TABLE IF NOT EXISTS faturas_agendadas (
@@ -59,6 +62,26 @@ def criar_tabelas_essenciais():
             criado_em TIMESTAMP DEFAULT NOW()
         )
     """)
+
+    # ======== NOVAS COLUNAS PAGAMENTOS ========
+
+    novas_colunas = [
+        ("referencia_pagamento", "TEXT"),
+        ("transacao_id", "TEXT"),
+        ("ativa", "BOOLEAN DEFAULT TRUE"),
+        ("estado_pagamento", "TEXT DEFAULT 'pendente'"),
+        ("ultimo_pagamento", "TIMESTAMP")
+    ]
+
+    for coluna, tipo in novas_colunas:
+        try:
+            cur.execute(f"""
+                ALTER TABLE clientes_nv
+                ADD COLUMN IF NOT EXISTS {coluna} {tipo}
+            """)
+        except Exception as e:
+            print(f"Erro ao criar coluna {coluna}: {e}")
+
     conn.commit()
     conn.close()
 
@@ -326,6 +349,63 @@ def buscar_licenca(maquina_id):
             "email": licenca[6]
         })
     return jsonify({"error": "Licença não encontrada"}), 404
+
+# ======== API PAGAMENTOS ========
+
+@app.route("/api/pagamento/iniciar", methods=["POST"])
+def iniciar_pagamento():
+    try:
+        data = request.get_json()
+
+        chave = data.get("chave_licenca")
+        numero = data.get("numero")
+        operadora = data.get("operadora")
+        valor = data.get("valor")
+
+        if not chave or not numero or not operadora or not valor:
+            return jsonify({
+                "sucesso": False,
+                "mensagem": "Dados incompletos"
+            }), 400
+
+        transacao_id = f"TX-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+
+        conn = conectar()
+        cur = conn.cursor()
+
+        cur.execute("""
+            UPDATE clientes_nv
+            SET referencia_pagamento = %s,
+                transacao_id = %s,
+                status = 'pendente',
+                ultima_sync = %s
+            WHERE chave_licenca = %s
+        """, (
+            numero,
+            transacao_id,
+            datetime.now(),
+            chave
+        ))
+
+        conn.commit()
+        conn.close()
+
+        # ==================================================
+        # FUTURAMENTE:
+        # AQUI ENTRA API REAL MOVITEL / MPESA
+        # ==================================================
+
+        return jsonify({
+            "sucesso": True,
+            "mensagem": "Pedido enviado. Confirme no telemóvel.",
+            "transacao_id": transacao_id
+        })
+
+    except Exception as e:
+        return jsonify({
+            "sucesso": False,
+            "mensagem": str(e)
+        }), 500
 
 # ======== PDF e Email ========
 def gerar_pdf_fatura(empresa_info, cliente_info, valor, referencia):
