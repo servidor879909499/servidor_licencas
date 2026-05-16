@@ -389,6 +389,63 @@ def gerar_pdf_fatura(empresa_info, cliente_info, valor, referencia):
     buffer.seek(0)
     return buffer.read()
 
+# ======== API PAGAMENTOS ========
+
+@app.route("/api/pagamento/iniciar", methods=["POST"])
+def iniciar_pagamento():
+    try:
+        data = request.get_json()
+
+        chave = data.get("chave_licenca")
+        numero = data.get("numero")
+        operadora = data.get("operadora")
+        valor = data.get("valor")
+
+        if not chave or not numero or not operadora or not valor:
+            return jsonify({
+                "sucesso": False,
+                "mensagem": "Dados incompletos"
+            }), 400
+
+        transacao_id = f"TX-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+
+        conn = conectar()
+        cur = conn.cursor()
+
+        cur.execute("""
+            UPDATE clientes_nv
+            SET referencia_pagamento = %s,
+                transacao_id = %s,
+                status = 'pendente',
+                ultima_sync = %s
+            WHERE chave_licenca = %s
+        """, (
+            numero,
+            transacao_id,
+            datetime.now(),
+            chave
+        ))
+
+        conn.commit()
+        conn.close()
+
+        # ==================================================
+        # FUTURAMENTE:
+        # AQUI ENTRA API REAL MOVITEL / MPESA
+        # ==================================================
+
+        return jsonify({
+            "sucesso": True,
+            "mensagem": "Pedido enviado. Confirme no telemóvel.",
+            "transacao_id": transacao_id
+        })
+
+    except Exception as e:
+        return jsonify({
+            "sucesso": False,
+            "mensagem": str(e)
+        }), 500
+        
 def enviar_email_com_anexo(destinatario, assunto, corpo_html, anexo_bytes, anexo_nome):
     smtp_host = get_config("smtp_host", "smtp.gmail.com")
     smtp_port = int(get_config("smtp_port", "587"))
