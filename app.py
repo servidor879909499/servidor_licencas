@@ -292,20 +292,53 @@ def cancelar_fatura(fatura_id):
 
 # ======== API: licenças ========
 @app.route("/api/licencas", methods=["GET", "POST"])
-
-@app.route("/api/licencas", methods=["POST"])
-def salvar_licenca():
-    data = request.json
+def api_licencas():
 
     conn = conectar()
     cur = conn.cursor()
 
+    # =========================
+    # GET
+    # =========================
+    if request.method == "GET":
+
+        cur.execute("""
+            SELECT empresa, maquina_id, chave_licenca,
+                   data_inicio, dias, status, email
+            FROM clientes_nv
+        """)
+
+        licencas = cur.fetchall()
+        conn.close()
+
+        lista = []
+
+        for l in licencas:
+            lista.append({
+                "empresa": l[0],
+                "maquina_id": l[1],
+                "chave_licenca": l[2],
+                "data_inicio": l[3].strftime("%Y-%m-%d %H:%M:%S") if l[3] else None,
+                "dias": l[4],
+                "status": l[5],
+                "email": l[6]
+            })
+
+        return jsonify(lista)
+
+    # =========================
+    # POST
+    # =========================
+    data = request.get_json()
+
     cur.execute("""
         SELECT id FROM clientes_nv WHERE maquina_id = %s
     """, (data["maquina_id"],))
+
     existe = cur.fetchone()
 
     if existe:
+
         cur.execute("""
             UPDATE clientes_nv
             SET empresa=%s,
@@ -313,7 +346,8 @@ def salvar_licenca():
                 data_inicio=%s,
                 dias=%s,
                 status=%s,
-                email=%s
+                email=%s,
+                ultima_sync=%s
             WHERE maquina_id=%s
         """, (
             data["empresa"],
@@ -322,13 +356,19 @@ def salvar_licenca():
             data["dias"],
             data["status"],
             data.get("email"),
+            datetime.now(),
             data["maquina_id"]
         ))
+
     else:
+
         cur.execute("""
             INSERT INTO clientes_nv
-            (empresa, maquina_id, chave_licenca, data_inicio, dias, status, email)
-            VALUES (%s,%s,%s,%s,%s,%s,%s)
+            (empresa, maquina_id, chave_licenca,
+             data_inicio, dias, status,
+             ultima_sync, email)
+
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
         """, (
             data["empresa"],
             data["maquina_id"],
@@ -336,13 +376,14 @@ def salvar_licenca():
             data["data_inicio"],
             data["dias"],
             data["status"],
+            datetime.now(),
             data.get("email")
         ))
 
     conn.commit()
     conn.close()
 
-    return {"ok": True}
+    return jsonify({"ok": True})
 
 @app.route("/licencas")
 def licencas():
@@ -380,57 +421,6 @@ def licencas():
         title="Licenças"
     )
 
-def api_licencas():
-    if request.method == "GET":
-        conn = conectar()
-        cur = conn.cursor()
-        cur.execute("SELECT empresa, maquina_id, chave_licenca, data_inicio, dias, status, email, valor_mensal FROM clientes_nv")
-        licencas = cur.fetchall()
-        conn.close()
-        lista = []
-        for l in licencas:
-            lista.append({
-                "empresa": l[0],
-                "maquina_id": l[1],
-                "chave_licenca": l[2],
-                "data_inicio": l[3].strftime("%Y-%m-%d %H:%M:%S") if l[3] else None,
-                "dias": l[4],
-                "status": l[5],
-                "email": l[6]
-            })
-        return jsonify(lista)
-    else:
-        data = request.get_json()
-        conn = conectar()
-        cur = conn.cursor()
-        email = data.get("email")
-        data_inicio = None
-        try:
-            if data.get("data_inicio"):
-                data_inicio = datetime.strptime(data["data_inicio"], "%Y-%m-%d %H:%M:%S")
-        except Exception:
-            data_inicio = None
-
-        cur.execute("""
-            INSERT INTO clientes_nv (empresa, maquina_id, chave_licenca, data_inicio, dias, status, ultima_sync, email)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-            ON CONFLICT (maquina_id)
-            DO UPDATE SET empresa=EXCLUDED.empresa, chave_licenca=EXCLUDED.chave_licenca,
-                          dias=EXCLUDED.dias, status=EXCLUDED.status, ultima_sync=EXCLUDED.ultima_sync,
-                          email=COALESCE(EXCLUDED.email, clientes_nv.email)
-        """, (
-            data.get("empresa"),
-            data.get("maquina_id"),
-            data.get("chave_licenca"),
-            data_inicio,
-            data.get("dias", 30),
-            data.get("status", "ativo"),
-            datetime.now(),
-            email
-        ))
-        conn.commit()
-        conn.close()
-        return jsonify({"ok": True})
 
 @app.route("/debug_db")
 def debug_db():
