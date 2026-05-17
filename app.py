@@ -329,10 +329,12 @@ def api_licencas():
     # =========================
     # POST
     # =========================
-    data = request.get_json(silent=True)
+    if request.method == "POST":
 
-    if not data:
-        return jsonify({"erro": "JSON inválido"}), 400
+        data = request.get_json(silent=True)
+
+        if not data:
+            return jsonify({"erro": "JSON inválido"}), 400
 
     cur.execute("""
         SELECT id FROM clientes_nv WHERE maquina_id = %s
@@ -477,11 +479,12 @@ def buscar_licenca(maquina_id):
 @app.route("/api/pagamento/iniciar", methods=["POST"])
 def iniciar_pagamento_api():
     try:
-        data = request.get_json(silent=True)
+        if request.method == "POST":
 
-        if not data:
-            return jsonify({"erro": "JSON inválido"}), 400
+            data = request.get_json(silent=True)
 
+            if not data:
+                return jsonify({"erro": "JSON inválido"}), 400
 
         chave = data.get("chave_licenca")
         numero = data.get("numero")
@@ -578,11 +581,12 @@ def gerar_pdf_fatura(empresa_info, cliente_info, valor, referencia):
 @app.route("/api/pagamento/iniciar", methods=["POST"])
 def iniciar_pagamento():
     try:
-        data = request.get_json(silent=True)
+        if request.method == "POST":
 
-        if not data:
-            return jsonify({"erro": "JSON inválido"}), 400
+            data = request.get_json(silent=True)
 
+            if not data:
+                return jsonify({"erro": "JSON inválido"}), 400
 
         chave = data.get("chave_licenca")
         numero = data.get("numero")
