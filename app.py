@@ -13,6 +13,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import os
 from dotenv import load_dotenv
 load_dotenv()
+print("APP NOVO CARREGADO")
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 app = Flask(__name__)
