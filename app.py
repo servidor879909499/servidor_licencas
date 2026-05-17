@@ -329,7 +329,10 @@ def api_licencas():
     # =========================
     # POST
     # =========================
-    data = request.get_json()
+    data = request.get_json(silent=True)
+
+    if not data:
+        return jsonify({"erro": "JSON inválido"}), 400
 
     cur.execute("""
         SELECT id FROM clientes_nv WHERE maquina_id = %s
