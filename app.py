@@ -15,6 +15,7 @@ app = Flask(__name__)
 app.secret_key = "sua_chave_secreta_aqui"
 
 # ======== CONEXÃO COM O BANCO ========
+
 def conectar():
     return psycopg2.connect(
         "postgresql://neondb_owner:npg_Uik7L0cTlJZt@ep-square-rain-aqkt3tnc-pooler.c-8.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
