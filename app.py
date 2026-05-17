@@ -10,6 +10,10 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email import encoders
 from apscheduler.schedulers.background import BackgroundScheduler
+import os
+from dotenv import load_dotenv
+load_dotenv()
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 app = Flask(__name__)
 app.secret_key = "sua_chave_secreta_aqui"
@@ -17,9 +21,7 @@ app.secret_key = "sua_chave_secreta_aqui"
 # ======== CONEXÃO COM O BANCO ========
 
 def conectar():
-    return psycopg2.connect(
-        "postgresql://neondb_owner:npg_Uik7L0cTlJZt@ep-square-rain-aqkt3tnc-pooler.c-8.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
-    )
+    return psycopg2.connect(DATABASE_URL)
 
 # ======== CRIAÇÃO/MIGRAÇÕES LEVES ========
 def criar_tabelas_essenciais():
@@ -40,9 +42,7 @@ def criar_tabelas_essenciais():
             status TEXT DEFAULT 'ativo',
             ultima_sync TIMESTAMP,
             email TEXT,
-
             valor_mensal NUMERIC DEFAULT 0,
-
             ativa BOOLEAN DEFAULT FALSE,
             referencia_pagamento TEXT,
             transacao_id TEXT
