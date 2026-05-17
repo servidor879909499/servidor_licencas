@@ -88,6 +88,10 @@ def criar_tabelas_essenciais():
 
 criar_tabelas_essenciais()
 
+@app.route("/clientes")
+def clientes():
+    return render_template("clientes.html")
+
 # ======== UTILITÁRIOS DE CONFIG ========
 def get_config(chave, default=None):
     conn = conectar()
