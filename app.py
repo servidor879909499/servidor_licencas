@@ -17,7 +17,7 @@ app.secret_key = "sua_chave_secreta_aqui"
 # ======== CONEXÃO COM O BANCO ========
 def conectar():
     return psycopg2.connect(
-        "postgresql://neondb_owner:npg_cMnJsoUp74VW@ep-misty-dawn-agy72cae-pooler.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require"
+        "postgresql://neondb_owner:npg_Uik7L0cTlJZt@ep-square-rain-aqkt3tnc-pooler.c-8.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
     )
 
 # ======== CRIAÇÃO/MIGRAÇÕES LEVES ========
@@ -25,7 +25,9 @@ def criar_tabelas_essenciais():
     conn = conectar()
     cur = conn.cursor()
 
-    # tabela clientes_nv
+    # ===============================
+    # CLIENTES / LICENÇAS
+    # ===============================
     cur.execute("""
         CREATE TABLE IF NOT EXISTS clientes_nv (
             id SERIAL PRIMARY KEY,
@@ -33,14 +35,22 @@ def criar_tabelas_essenciais():
             maquina_id TEXT UNIQUE,
             chave_licenca TEXT,
             data_inicio TIMESTAMP,
-            dias INTEGER,
-            status TEXT,
+            dias INTEGER DEFAULT 0,
+            status TEXT DEFAULT 'ativo',
             ultima_sync TIMESTAMP,
-            email TEXT
+            email TEXT,
+
+            valor_mensal NUMERIC DEFAULT 0,
+
+            ativa BOOLEAN DEFAULT FALSE,
+            referencia_pagamento TEXT,
+            transacao_id TEXT
         )
     """)
 
-    # tabela configuracoes
+    # ===============================
+    # CONFIGURAÇÕES
+    # ===============================
     cur.execute("""
         CREATE TABLE IF NOT EXISTS configuracoes (
             id SERIAL PRIMARY KEY,
@@ -49,42 +59,29 @@ def criar_tabelas_essenciais():
         )
     """)
 
-    # faturas agendadas
+    # ===============================
+    # FATURAS
+    # ===============================
     cur.execute("""
         CREATE TABLE IF NOT EXISTS faturas_agendadas (
             id SERIAL PRIMARY KEY,
-            cliente_id INTEGER REFERENCES clientes_nv(id) ON DELETE CASCADE,
+
+            cliente_id INTEGER
+            REFERENCES clientes_nv(id)
+            ON DELETE CASCADE,
+
             email_cliente TEXT,
             valor NUMERIC,
+
             dia_emissao DATE,
+
             proxima_envio TIMESTAMP,
+
             ativo BOOLEAN DEFAULT TRUE,
+
             criado_em TIMESTAMP DEFAULT NOW()
         )
     """)
-
-    # ======== NOVAS COLUNAS PAGAMENTOS ========
-
-    novas_colunas = [
-        ("email", "TEXT"),
-        ("referencia_pagamento", "TEXT"),
-        ("transacao_id", "TEXT"),
-        ("ativa", "BOOLEAN DEFAULT TRUE"),
-        ("ultimo_pagamento", "TIMESTAMP"),
-        ("estado_pagamento", "TEXT DEFAULT 'pendente'"),
-        ("operadora", "TEXT"),
-        ("valor_pagamento", "NUMERIC"),
-        ("valor_mensal", "NUMERIC DEFAULT 0")
-    ]
-
-    for coluna, tipo in novas_colunas:
-        try:
-            cur.execute(f"""
-                ALTER TABLE clientes_nv
-                ADD COLUMN IF NOT EXISTS {coluna} {tipo}
-            """)
-        except Exception as e:
-            print(f"Erro ao criar coluna {coluna}: {e}")
 
     conn.commit()
     conn.close()
