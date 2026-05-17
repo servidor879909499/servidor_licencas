@@ -452,16 +452,23 @@ def debug_db():
         "tabelas": tabelas
     }
 
+@app.route("/api/licencas/<maquina_id>", methods=["GET"])
 def buscar_licenca(maquina_id):
+
     conn = conectar()
     cur = conn.cursor()
+
     cur.execute("""
-        SELECT empresa, maquina_id, chave_licenca, data_inicio, dias, status, email
+        SELECT empresa, maquina_id, chave_licenca,
+               data_inicio, dias, status, email
         FROM clientes_nv
         WHERE maquina_id = %s
     """, (maquina_id,))
+
     licenca = cur.fetchone()
+
     conn.close()
+
     if licenca:
         return jsonify({
             "empresa": licenca[0],
@@ -472,7 +479,10 @@ def buscar_licenca(maquina_id):
             "status": licenca[5],
             "email": licenca[6]
         })
-    return jsonify({"error": "Licença não encontrada"}), 404
+
+    return jsonify({
+        "error": "Licença não encontrada"
+    }), 404
 
 # ======== API PAGAMENTOS ========
 
