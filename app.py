@@ -89,9 +89,6 @@ def criar_tabelas_essenciais():
 
 criar_tabelas_essenciais()
 
-@app.route("/clientes")
-def clientes():
-    return render_template("clientes.html")
 
 # ======== UTILITÁRIOS DE CONFIG ========
 def get_config(chave, default=None):
@@ -751,6 +748,39 @@ def atualizar_valor(cliente_id):
     flash("Valor mensal atualizado com sucesso!", "success")
 
     return redirect(url_for("painel"))
+
+# ======== CLIENTES ========
+
+@app.route("/clientes")
+def clientes():
+    conn = conectar()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT id, empresa, maquina_id, email, status
+        FROM clientes_nv
+        ORDER BY empresa
+    """)
+
+    clientes = cur.fetchall()
+
+    conn.close()
+
+    return render_template(
+        "clientes.html",
+        clientes=clientes,
+        title="Clientes"
+    )
+
+
+# ======== ATUALIZAÇÕES ========
+
+@app.route("/atualizacoes")
+def atualizacoes():
+    return render_template(
+        "atualizacoes.html",
+        title="Atualizações"
+    )
 
 # ======== RUN ========
 if __name__ == "__main__":
