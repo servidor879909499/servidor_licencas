@@ -293,6 +293,57 @@ def cancelar_fatura(fatura_id):
 # ======== API: licenças ========
 @app.route("/api/licencas", methods=["GET", "POST"])
 
+@app.route("/api/licencas", methods=["POST"])
+def salvar_licenca():
+    data = request.json
+
+    conn = conectar()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT id FROM clientes_nv WHERE maquina_id = %s
+    """, (data["maquina_id"],))
+    existe = cur.fetchone()
+
+    if existe:
+        cur.execute("""
+            UPDATE clientes_nv
+            SET empresa=%s,
+                chave_licenca=%s,
+                data_inicio=%s,
+                dias=%s,
+                status=%s,
+                email=%s
+            WHERE maquina_id=%s
+        """, (
+            data["empresa"],
+            data["chave_licenca"],
+            data["data_inicio"],
+            data["dias"],
+            data["status"],
+            data.get("email"),
+            data["maquina_id"]
+        ))
+    else:
+        cur.execute("""
+            INSERT INTO clientes_nv
+            (empresa, maquina_id, chave_licenca, data_inicio, dias, status, email)
+            VALUES (%s,%s,%s,%s,%s,%s,%s)
+        """, (
+            data["empresa"],
+            data["maquina_id"],
+            data["chave_licenca"],
+            data["data_inicio"],
+            data["dias"],
+            data["status"],
+            data.get("email")
+        ))
+
+    conn.commit()
+    conn.close()
+
+    return {"ok": True}
+
 @app.route("/licencas")
 def licencas():
 
@@ -781,6 +832,7 @@ def atualizacoes():
         "atualizacoes.html",
         title="Atualizações"
     )
+
 
 # ======== RUN ========
 if __name__ == "__main__":
