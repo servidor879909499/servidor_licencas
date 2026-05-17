@@ -294,15 +294,99 @@ def cancelar_fatura(fatura_id):
 @app.route("/api/licencas", methods=["GET", "POST"])
 def api_licencas():
 
-    print("ROTA API LICENCAS CHAMADA")
-    print("METODO:", request.method)
+    conn = conectar()
+    cur = conn.cursor()
 
+    # =========================
+    # GET
+    # =========================
     if request.method == "GET":
-        return jsonify([
-            {
-                "teste": "ok"
-            }
-        ])
+
+        cur.execute("""
+            SELECT empresa, maquina_id, chave_licenca,
+                   data_inicio, dias, status, email
+            FROM clientes_nv
+        """)
+
+        licencas = cur.fetchall()
+        conn.close()
+
+        lista = []
+
+        for l in licencas:
+            lista.append({
+                "empresa": l[0],
+                "maquina_id": l[1],
+                "chave_licenca": l[2],
+                "data_inicio": l[3].strftime("%Y-%m-%d %H:%M:%S") if l[3] else None,
+                "dias": l[4],
+                "status": l[5],
+                "email": l[6]
+            })
+
+        return jsonify(lista)
+
+    # =========================
+    # POST
+    # =========================
+    if request.method == "POST":
+
+        data = request.get_json(silent=True)
+
+        if not data:
+            return jsonify({"erro": "JSON inválido"}), 400
+
+    cur.execute("""
+        SELECT id FROM clientes_nv WHERE maquina_id = %s
+    """, (data["maquina_id"],))
+
+    existe = cur.fetchone()
+
+    if existe:
+
+        cur.execute("""
+            UPDATE clientes_nv
+            SET empresa=%s,
+                chave_licenca=%s,
+                data_inicio=%s,
+                dias=%s,
+                status=%s,
+                email=%s,
+                ultima_sync=%s
+            WHERE maquina_id=%s
+        """, (
+            data["empresa"],
+            data["chave_licenca"],
+            data["data_inicio"],
+            data["dias"],
+            data["status"],
+            data.get("email"),
+            datetime.now(),
+            data["maquina_id"]
+        ))
+
+    else:
+
+        cur.execute("""
+            INSERT INTO clientes_nv
+            (empresa, maquina_id, chave_licenca,
+             data_inicio, dias, status,
+             ultima_sync, email)
+
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+        """, (
+            data["empresa"],
+            data["maquina_id"],
+            data["chave_licenca"],
+            data["data_inicio"],
+            data["dias"],
+            data["status"],
+            datetime.now(),
+            data.get("email")
+        ))
+
+    conn.commit()
+    conn.close()
 
     return jsonify({"ok": True})
 
@@ -367,7 +451,6 @@ def debug_db():
         "tabelas": tabelas
     }
 
-@app.route("/api/licencas/<maquina_id>", methods=["GET"])
 def buscar_licenca(maquina_id):
     conn = conectar()
     cur = conn.cursor()
