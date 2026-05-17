@@ -294,12 +294,15 @@ def cancelar_fatura(fatura_id):
 @app.route("/api/licencas", methods=["GET", "POST"])
 def api_licencas():
 
+    print("ROTA API LICENCAS CHAMADA")
     print("METODO:", request.method)
 
     if request.method == "GET":
-        return jsonify([])
-
-    data = request.get_json(silent=True)
+        return jsonify([
+            {
+                "teste": "ok"
+            }
+        ])
 
     return jsonify({"ok": True})
 
