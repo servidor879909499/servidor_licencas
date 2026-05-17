@@ -21,7 +21,7 @@ app.secret_key = "sua_chave_secreta_aqui"
 # ======== CONEXÃO COM O BANCO ========
 
 def conectar():
-    return psycopg2.connect(DATABASE_URL)
+    return psycopg2.connect(ATABASE_URL)
 
 # ======== CRIAÇÃO/MIGRAÇÕES LEVES ========
 def criar_tabelas_essenciais():
