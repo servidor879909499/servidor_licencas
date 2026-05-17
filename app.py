@@ -13,7 +13,6 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import os
 from dotenv import load_dotenv
 load_dotenv()
-print("APP NOVO CARREGADO")
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 app = Flask(__name__)
@@ -23,6 +22,7 @@ app.secret_key = "sua_chave_secreta_aqui"
 
 def conectar():
     return psycopg2.connect(DATABASE_URL)
+
 
 # ======== CRIAÇÃO/MIGRAÇÕES LEVES ========
 def criar_tabelas_essenciais():
@@ -90,6 +90,103 @@ def criar_tabelas_essenciais():
 
 criar_tabelas_essenciais()
 
+# =========================
+# USSD SYSTEM
+# =========================
+
+@app.route("/ussd", methods=["POST"])
+def ussd():
+
+    session_id = request.values.get("sessionId")
+    phone = request.values.get("phoneNumber")
+    text = request.values.get("text", "")
+
+    # PRIMEIRA ECRÃ
+    if text == "":
+        return "CON NV Sistema\n1. Ver Licença\n2. Pagamento\n3. Estado"
+
+    partes = text.split("*")
+    opcao = partes[0]
+
+    if opcao == "1":
+        return ver_licenca(phone)
+
+    elif opcao == "2":
+        return menu_pagamento()
+
+    elif opcao == "3":
+        return estado_pagamento(phone)
+
+    return "END Opção inválida"
+
+def resposta_ussd(texto):
+    return texto, 200, {"Content-Type": "text/plain"}
+
+
+def menu_principal():
+    return "CON NV Sistema\n1. Ver Licença\n2. Pagar\n3. Estado Pagamento"
+
+def processar_menu(partes, phone):
+
+    opcao = partes[0]
+
+    if opcao == "1":
+        return resposta_ussd(ver_licenca(phone))
+
+    elif opcao == "2":
+        return resposta_ussd(menu_pagamento())
+
+    elif opcao == "3":
+        return resposta_ussd(estado_pagamento(phone))
+
+    return resposta_ussd("END Opção inválida")
+
+def ver_licenca(phone):
+
+    conn = conectar()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT dias, status, valor_mensal
+        FROM clientes_nv
+        WHERE referencia_pagamento = %s
+        LIMIT 1
+    """, (phone,))
+
+    row = cur.fetchone()
+    conn.close()
+
+    if not row:
+        return "END Licença não encontrada"
+
+    dias, status, valor = row
+
+    return f"END Licença\nDias: {dias}\nStatus: {status}\nValor: {valor} MZN"
+
+def estado_pagamento(phone):
+
+    conn = conectar()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT estado_pagamento, valor_pagamento
+        FROM clientes_nv
+        WHERE referencia_pagamento = %s
+        LIMIT 1
+    """, (phone,))
+
+    row = cur.fetchone()
+    conn.close()
+
+    if not row:
+        return "END Sem dados de pagamento"
+
+    estado, valor = row
+
+    return f"END Estado: {estado}\nValor: {valor} MZN"
+
+def menu_pagamento():
+    return "CON Pagamento NV\n1. Movitel\n2. Vodacom\n0. Sair"
 
 # ======== UTILITÁRIOS DE CONFIG ========
 def get_config(chave, default=None):
@@ -814,6 +911,29 @@ def atualizar_valor(cliente_id):
     flash("Valor mensal atualizado com sucesso!", "success")
 
     return redirect(url_for("painel"))
+
+@app.route("/api/licenca/valor", methods=["GET"])
+def get_valor_licenca():
+    conn = conectar()
+    cur = conn.cursor()
+
+    # aqui escolhes o cliente correto (ex: último ou por máquina)
+    cur.execute("""
+        SELECT valor_mensal
+        FROM clientes_nv
+        ORDER BY id DESC
+        LIMIT 1
+    """)
+
+    row = cur.fetchone()
+    conn.close()
+
+    if not row:
+        return jsonify({"valor_mensal": 0})
+
+    return jsonify({
+        "valor_mensal": float(row[0] or 0)
+    })
 
 # ======== CLIENTES ========
 
