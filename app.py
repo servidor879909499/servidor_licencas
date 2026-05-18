@@ -1142,8 +1142,13 @@ def login():
         conn = conectar()
         cur = conn.cursor()
 
+        # LOGIN
         cur.execute("""
-            SELECT id
+            SELECT
+                id,
+                usuario,
+                tipo,
+                ativo
             FROM usuarios_admin
             WHERE usuario=%s
             AND senha=%s
@@ -1154,17 +1159,32 @@ def login():
 
         conn.close()
 
+        # SE ENCONTROU
         if user:
 
             session["admin_logado"] = True
-            session["usuario"] = user[0]
-            session["tipo"] = user[1]
 
-        return redirect("/painel")
+            session["usuario_id"] = user[0]
+
+            session["usuario"] = user[1]
+
+            session["tipo"] = user[2]
+
+            return redirect("/painel")
+
+        else:
+
+            return """
+            <script>
+                alert('Usuário ou senha inválidos!');
+                window.location='/login';
+            </script>
+            """
 
     return """
     <!DOCTYPE html>
     <html lang="pt">
+
     <head>
 
         <meta charset="UTF-8">
@@ -1330,6 +1350,7 @@ def login():
         </div>
 
     </body>
+
     </html>
     """
 # ======== RUN ========
