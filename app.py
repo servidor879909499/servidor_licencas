@@ -43,10 +43,14 @@ def criar_tabelas_essenciais():
             status TEXT DEFAULT 'ativo',
             ultima_sync TIMESTAMP,
             email TEXT,
+            telefone TEXT,
             valor_mensal NUMERIC DEFAULT 0,
             ativa BOOLEAN DEFAULT FALSE,
             referencia_pagamento TEXT,
-            transacao_id TEXT
+            transacao_id TEXT,
+            metodo_pagamento TEXT,
+            estado_pagamento TEXT DEFAULT 'pendente',
+            ultimo_pagamento TIMESTAMP
         )
     """)
 
@@ -687,103 +691,53 @@ def gerar_pdf_fatura(empresa_info, cliente_info, valor, referencia):
 
 @app.route("/api/pagamento/iniciar", methods=["POST"])
 def iniciar_pagamento():
+
+    data = request.json
+
+    maquina_id = data.get("maquina_id")
+    telefone = data.get("telefone")
+    metodo = data.get("metodo")
+    valor = data.get("valor")
+
     try:
-        if request.method == "POST":
-
-            data = request.get_json(silent=True)
-
-            if not data:
-                return jsonify({"erro": "JSON inválido"}), 400
-
-        chave = data.get("chave_licenca")
-        numero = data.get("numero")
-        operadora = data.get("operadora")
-
-        if not chave or not numero or not operadora:
-            return jsonify({
-                "sucesso": False,
-                "mensagem": "Dados incompletos"
-            }), 400
 
         conn = conectar()
         cur = conn.cursor()
 
-        # ==================================================
-        # BUSCAR VALOR DIRETAMENTE DO BANCO
-        # ==================================================
-
-        cur.execute("""
-            SELECT valor_mensal
-            FROM clientes_nv
-            WHERE chave_licenca = %s
-        """, (chave,))
-
-        row = cur.fetchone()
-
-        if not row:
-            conn.close()
-
-            return jsonify({
-                "sucesso": False,
-                "mensagem": "Licença não encontrada"
-            }), 404
-
-        valor = float(row[0] or 0)
-
-        if valor <= 0:
-            conn.close()
-
-            return jsonify({
-                "sucesso": False,
-                "mensagem": "Valor mensal inválido"
-            }), 400
-
-        transacao_id = f"TX-{datetime.now().strftime('%Y%m%d%H%M%S')}"
-
-        # ==================================================
-        # ATUALIZAR DADOS PAGAMENTO
-        # ==================================================
-
         cur.execute("""
             UPDATE clientes_nv
-            SET referencia_pagamento = %s,
-                transacao_id = %s,
-                operadora = %s,
-                valor_pagamento = %s,
-                estado_pagamento = 'pendente',
-                status = 'pendente',
-                ultima_sync = %s
-            WHERE chave_licenca = %s
+            SET
+                telefone=%s,
+                metodo_pagamento=%s,
+                estado_pagamento='processando'
+            WHERE maquina_id=%s
         """, (
-            numero,
-            transacao_id,
-            operadora,
-            valor,
-            datetime.now(),
-            chave
+            telefone,
+            metodo,
+            maquina_id
         ))
 
         conn.commit()
         conn.close()
 
-        # ==================================================
-        # FUTURAMENTE:
-        # AQUI ENTRA API REAL MOVITEL / MPESA
-        # ==================================================
+        # AQUI amanhã entra gateway real
+        # mpesa/emola API
 
         return jsonify({
             "sucesso": True,
-            "mensagem": f"Pedido enviado para {numero}. Confirme o pagamento de {valor} MZN no telemóvel.",
-            "transacao_id": transacao_id,
-            "valor": valor
+            "mensagem": (
+                f"Pedido enviado para {telefone}.\n"
+                f"Confirme o PIN no telefone."
+            )
         })
 
     except Exception as e:
+
         return jsonify({
             "sucesso": False,
-            "mensagem": str(e)
-        }), 500
-        
+            "erro": str(e)
+        })
+    
 def enviar_email_com_anexo(destinatario, assunto, corpo_html, anexo_bytes, anexo_nome):
     smtp_host = get_config("smtp_host", "smtp.gmail.com")
     smtp_port = int(get_config("smtp_port", "587"))
@@ -913,27 +867,43 @@ def atualizar_valor(cliente_id):
     return redirect(url_for("painel"))
 
 @app.route("/api/licenca/valor", methods=["GET"])
-def get_valor_licenca():
-    conn = conectar()
-    cur = conn.cursor()
+def api_valor_licenca():
 
-    # aqui escolhes o cliente correto (ex: último ou por máquina)
-    cur.execute("""
-        SELECT valor_mensal
-        FROM clientes_nv
-        ORDER BY id DESC
-        LIMIT 1
-    """)
+    maquina_id = request.args.get("maquina_id")
 
-    row = cur.fetchone()
-    conn.close()
+    try:
+        conn = conectar()
+        cur = conn.cursor()
 
-    if not row:
-        return jsonify({"valor_mensal": 0})
+        cur.execute("""
+            SELECT valor_mensal, empresa, dias, status
+            FROM clientes_nv
+            WHERE maquina_id = %s
+            LIMIT 1
+        """, (maquina_id,))
 
-    return jsonify({
-        "valor_mensal": float(row[0] or 0)
-    })
+        row = cur.fetchone()
+        conn.close()
+
+        if not row:
+            return jsonify({
+                "sucesso": False,
+                "erro": "Cliente não encontrado"
+            })
+
+        return jsonify({
+            "sucesso": True,
+            "valor_mensal": float(row[0] or 0),
+            "empresa": row[1],
+            "dias": row[2],
+            "status": row[3]
+        })
+
+    except Exception as e:
+        return jsonify({
+            "sucesso": False,
+            "erro": str(e)
+        }), 500
 
 # ======== CLIENTES ========
 
