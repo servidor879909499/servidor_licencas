@@ -952,7 +952,6 @@ def atualizacoes():
     )
 
 from flask import request, redirect, session, flash
-from werkzeug.security import generate_password_hash
 
 # =========================================================
 # LISTAR USUÁRIOS
@@ -1127,6 +1126,7 @@ def login():
                 id,
                 usuario,
                 tipo,
+                senha,
                 ativo
             FROM usuarios_admin
             WHERE usuario=%s
@@ -1140,7 +1140,6 @@ def login():
 
         # SE ENCONTROU
         if user:
-            print(user)
             session["admin_logado"] = True
 
             session["usuario_id"] = user[0]
