@@ -291,7 +291,6 @@ Novo Usuário
 <thead class="table-dark">
 
 <tr>
-
 <th>ID</th>
 <th>Usuário</th>
 <th>Status</th>
@@ -334,17 +333,17 @@ Novo Usuário
 
 <td>
 
-{% if u[2] == "Ativo" %}
+{% if u[2] %}
 
-<span class="badge bg-success">
-Ativo
-</span>
+    <span class="badge bg-success">
+        Ativo
+    </span>
 
 {% else %}
 
-<span class="badge bg-danger">
-Inativo
-</span>
+    <span class="badge bg-danger">
+        Inativo
+    </span>
 
 {% endif %}
 
@@ -431,12 +430,15 @@ Status
 
 <select name="status"
         class="form-select">
-
 <option value="Ativo"
-{% if u[2] == "Ativo" %}selected{% endif %}>
+{% if u[2] %}selected{% endif %}>
 Ativo
 </option>
 
+<option value="Inativo"
+{% if not u[2] %}selected{% endif %}>
+Inativo
+</option>
 <option value="Inativo"
 {% if u[2] == "Inativo" %}selected{% endif %}>
 Inativo
