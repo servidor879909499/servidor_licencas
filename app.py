@@ -951,6 +951,26 @@ def atualizacoes():
         title="Atualizações"
     )
 
+@app.route("/usuarios")
+def usuarios():
+
+    if not session.get("admin_logado"):
+        return redirect("/login")
+
+    conn = conectar()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT id, usuario, ativo, criado_em
+        FROM usuarios_admin
+        ORDER BY usuario
+    """)
+
+    usuarios = cur.fetchall()
+    conn.close()
+
+    return render_template("usuarios.html", usuarios=usuarios)
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
 

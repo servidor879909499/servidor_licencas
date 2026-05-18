@@ -1,0 +1,23 @@
+<h2>Usuários do Sistema</h2>
+
+<table border="1" cellpadding="10">
+
+    <tr>
+        <th>ID</th>
+        <th>Usuário</th>
+        <th>Status</th>
+        <th>Data</th>
+    </tr>
+
+    {% for u in usuarios %}
+
+    <tr>
+        <td>{{ u[0] }}</td>
+        <td>{{ u[1] }}</td>
+        <td>{{ u[2] }}</td>
+        <td>{{ u[3] }}</td>
+    </tr>
+
+    {% endfor %}
+
+</table>
