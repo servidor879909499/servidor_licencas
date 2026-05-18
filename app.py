@@ -1003,9 +1003,7 @@ def adicionar_usuario():
     # CONVERTE STATUS
     ativo = True if status == "Ativo" else False
 
-    # CRIPTOGRAFA SENHA
-    senha_hash = generate_password_hash(senha)
-
+   
     conn = conectar()
     cur = conn.cursor()
 
@@ -1037,7 +1035,6 @@ def adicionar_usuario():
         VALUES (%s, %s, %s)
     """, (
         usuario,
-        senha_hash,
         ativo
     ))
 
