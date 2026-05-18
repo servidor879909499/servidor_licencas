@@ -101,44 +101,43 @@ body {
    NV Sistema
 
 </a>
-
 <button class="navbar-toggler"
         type="button"
         data-bs-toggle="collapse"
         data-bs-target="#navbarNav">
 
-<span class="navbar-toggler-icon"></span>
+    <span class="navbar-toggler-icon"></span>
 
 </button>
 
 <div class="collapse navbar-collapse" id="navbarNav">
 
-<ul class="navbar-nav ms-auto">
-<li class="nav-item">
-<a class="nav-link {% if request.path == '/usuarios' %}active{% endif %}"
-   href="{{ url_for('usuarios') }}">
+    <ul class="navbar-nav ms-auto">
 
-   👤 Usuários
+        <li class="nav-item">
+            <a class="nav-link {% if request.path == '/usuarios' %}active{% endif %}"
+               href="{{ url_for('usuarios') }}">
+               👤 Usuários
+            </a>
+        </li>
 
-</a>
-</li>
-<li class="nav-item">
-<a class="nav-link {% if request.path == '/painel' %}active{% endif %}"
-   href="{{ url_for('painel') }}">
+        <li class="nav-item">
+            <a class="nav-link {% if request.path == '/painel' %}active{% endif %}"
+               href="{{ url_for('painel') }}">
+               Início
+            </a>
+        </li>
 
-   Início
+        <li class="nav-item">
+            <a class="nav-link {% if request.path == '/clientes' %}active{% endif %}"
+               href="{{ url_for('clientes') }}">
+               Clientes
+            </a>
+        </li>
 
-</a>
-</li>
+    </ul>
 
-<li class="nav-item">
-<a class="nav-link {% if request.path == '/clientes' %}active{% endif %}"
-   href="{{ url_for('clientes') }}">
-
-   Clientes
-
-</a>
-</li>
+</div>
 
 <li class="nav-item">
 <a class="nav-link {% if request.path == '/licencas' %}active{% endif %}"
@@ -148,16 +147,12 @@ body {
 
 </a>
 </li>
-
 <li class="nav-item">
-<a class="nav-link text-danger"
-   href="{{ url_for('logout') }}">
-
-   Sair
-
-</a>
+    <a class="nav-link text-danger"
+       href="{{ url_for('logout') }}">
+       Sair
+    </a>
 </li>
-
 
 </ul>
 
@@ -169,61 +164,49 @@ body {
 
 <!-- SIDEBAR -->
 <div class="sidebar" id="sidebar">
+
+<h5>Menu</h5>
+
 <a href="{{ url_for('usuarios') }}"
    class="{% if request.path == '/usuarios' %}active{% endif %}">
-
-<span class="icon">👤</span>
-<span class="text">Usuários</span>
-
+    <span class="icon">👤</span>
+    <span class="text">Usuários</span>
 </a>
-<h5>Menu</h5>
 
 <a href="{{ url_for('painel') }}"
    class="{% if request.path == '/painel' %}active{% endif %}">
-
-<span class="icon">📊</span>
-<span class="text">Painel</span>
-
+    <span class="icon">📊</span>
+    <span class="text">Painel</span>
 </a>
 
 <a href="{{ url_for('faturas') }}"
    class="{% if request.path == '/faturas' %}active{% endif %}">
-
-<span class="icon">🧾</span>
-<span class="text">Faturas</span>
-
+    <span class="icon">🧾</span>
+    <span class="text">Faturas</span>
 </a>
 
 <a href="{{ url_for('licencas') }}"
    class="{% if request.path == '/licencas' %}active{% endif %}">
-
-<span class="icon">🔑</span>
-<span class="text">Licenças</span>
-
+    <span class="icon">🔑</span>
+    <span class="text">Licenças</span>
 </a>
 
 <a href="{{ url_for('clientes') }}"
    class="{% if request.path == '/clientes' %}active{% endif %}">
-
-<span class="icon">👥</span>
-<span class="text">Clientes</span>
-
+    <span class="icon">👥</span>
+    <span class="text">Clientes</span>
 </a>
 
 <a href="{{ url_for('configuracoes') }}"
    class="{% if request.path == '/configuracoes' %}active{% endif %}">
-
-<span class="icon">⚙️</span>
-<span class="text">Configurações</span>
-
+    <span class="icon">⚙️</span>
+    <span class="text">Configurações</span>
 </a>
 
 <a href="{{ url_for('atualizacoes') }}"
    class="{% if request.path == '/atualizacoes' %}active{% endif %}">
-
-<span class="icon">📦</span>
-<span class="text">Atualizações</span>
-
+    <span class="icon">📦</span>
+    <span class="text">Atualizações</span>
 </a>
 
 </div>
@@ -232,7 +215,7 @@ body {
 <div class="content" id="content">
 
 <h3 class="text-center mb-4 mt-3">
-{{ title }}
+    {{ title }}
 </h3>
 
 <!-- FLASH -->
