@@ -1001,6 +1001,33 @@ def adicionar_usuario():
 
     ativo = True if status == "Ativo" else False
 
+    # ===============================
+    # VALIDAÇÃO DE FORÇA DA SENHA
+    # ===============================
+    def forca_senha(s):
+        score = 0
+
+        if len(s) >= 6:
+            score += 1
+        if len(s) >= 10:
+            score += 1
+        if any(c.isupper() for c in s):
+            score += 1
+        if any(c.isdigit() for c in s):
+            score += 1
+        if any(not c.isalnum() for c in s):
+            score += 1
+
+        return score
+
+    score = forca_senha(senha)
+
+    # BLOQUEIO DE SENHA FRACA
+    if score <= 2:
+
+        flash("Senha fraca! Use letras maiúsculas, números e símbolos.", "danger")
+        return redirect("/usuarios")
+
     conn = conectar()
     cur = conn.cursor()
 
@@ -1026,7 +1053,6 @@ def adicionar_usuario():
     flash("Usuário adicionado com sucesso!", "success")
 
     return redirect("/usuarios")
-
 # =========================================================
 # ATUALIZAR USUÁRIO
 # =========================================================
