@@ -878,9 +878,8 @@ def api_valor_licenca():
         cur.execute("""
             SELECT valor_mensal, empresa, dias, status
             FROM clientes_nv
-            WHERE maquina_id = %s
             LIMIT 1
-        """, (maquina_id,))
+        """)
 
         row = cur.fetchone()
         conn.close()
