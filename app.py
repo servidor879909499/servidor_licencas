@@ -1000,42 +1000,25 @@ def adicionar_usuario():
     senha = request.form.get("senha")
     status = request.form.get("status")
 
-    # CONVERTE STATUS
     ativo = True if status == "Ativo" else False
 
-   
     conn = conectar()
     cur = conn.cursor()
 
-    # VERIFICA DUPLICADO
-    cur.execute("""
-        SELECT id
-        FROM usuarios_admin
-        WHERE usuario = %s
-    """, (usuario,))
-
-    existe = cur.fetchone()
-
-    if existe:
-
-        conn.close()
-
-        flash("Usuário já existe!", "danger")
-
-        return redirect("/usuarios")
-
-    # INSERT
     cur.execute("""
         INSERT INTO usuarios_admin
         (
             usuario,
             senha,
-            ativo
+            ativo,
+            tipo
         )
-        VALUES (%s, %s, %s)
+        VALUES (%s, %s, %s, %s)
     """, (
         usuario,
-        ativo
+        senha,
+        ativo,
+        "admin"
     ))
 
     conn.commit()
@@ -1044,7 +1027,6 @@ def adicionar_usuario():
     flash("Usuário adicionado com sucesso!", "success")
 
     return redirect("/usuarios")
-
 
 # =========================================================
 # ATUALIZAR USUÁRIO
