@@ -983,175 +983,175 @@ def login():
         return "Login inválido"
 
     return """
-        <!DOCTYPE html>
-        <html lang="pt">
-        <head>
+    <!DOCTYPE html>
+    <html lang="pt">
+    <head>
 
-            <meta charset="UTF-8">
+        <meta charset="UTF-8">
 
-            <title>Login NV Sistema</title>
+        <title>Login NV Sistema</title>
 
-            <style>
+        <style>
 
-                *{
-                    margin:0;
-                    padding:0;
-                    box-sizing:border-box;
-                    font-family:Segoe UI;
-                }
+            *{
+                margin:0;
+                padding:0;
+                box-sizing:border-box;
+                font-family:Segoe UI;
+            }
 
-                body{
+            body{
 
-                    height:100vh;
+                height:100vh;
 
-                    display:flex;
+                display:flex;
 
-                    justify-content:center;
-                    align-items:center;
+                justify-content:center;
+                align-items:center;
 
-                    background:linear-gradient(
-                        135deg,
-                        #1E90FF,
-                        #57848b
-                    );
-                }
+                background:linear-gradient(
+                    135deg,
+                    #1E90FF,
+                    #57848b
+                );
+            }
 
-                .card{
+            .card{
 
-                    width:360px;
+                width:360px;
 
-                    background:white;
+                background:white;
 
-                    border-radius:18px;
+                border-radius:18px;
 
-                    padding:35px;
+                padding:35px;
 
-                    box-shadow:0 10px 30px rgba(0,0,0,0.25);
+                box-shadow:0 10px 30px rgba(0,0,0,0.25);
 
-                    text-align:center;
-                }
+                text-align:center;
+            }
 
-                .logo{
+            .logo{
 
-                    font-size:55px;
-                    margin-bottom:10px;
-                }
+                font-size:55px;
+                margin-bottom:10px;
+            }
 
-                h2{
+            h2{
 
-                    color:#1E90FF;
+                color:#1E90FF;
 
-                    margin-bottom:25px;
-                }
+                margin-bottom:25px;
+            }
 
-                input{
+            input{
 
-                    width:100%;
+                width:100%;
 
-                    padding:13px;
+                padding:13px;
 
-                    margin-bottom:15px;
+                margin-bottom:15px;
 
-                    border:1px solid #d9d9d9;
+                border:1px solid #d9d9d9;
 
-                    border-radius:10px;
+                border-radius:10px;
 
-                    font-size:15px;
+                font-size:15px;
 
-                    outline:none;
+                outline:none;
 
-                    transition:0.2s;
-                }
+                transition:0.2s;
+            }
 
-                input:focus{
+            input:focus{
 
-                    border-color:#1E90FF;
+                border-color:#1E90FF;
 
-                    box-shadow:0 0 8px rgba(30,144,255,0.3);
-                }
+                box-shadow:0 0 8px rgba(30,144,255,0.3);
+            }
 
-                button{
+            button{
 
-                    width:100%;
+                width:100%;
 
-                    padding:13px;
+                padding:13px;
 
-                    border:none;
+                border:none;
 
-                    border-radius:10px;
+                border-radius:10px;
 
-                    background:#1E90FF;
+                background:#1E90FF;
 
-                    color:white;
+                color:white;
 
-                    font-size:16px;
+                font-size:16px;
 
-                    font-weight:bold;
+                font-weight:bold;
 
-                    cursor:pointer;
+                cursor:pointer;
 
-                    transition:0.2s;
-                }
+                transition:0.2s;
+            }
 
-                button:hover{
+            button:hover{
 
-                    background:#1877d3;
-                }
+                background:#1877d3;
+            }
 
-                .rodape{
+            .rodape{
 
-                    margin-top:18px;
+                margin-top:18px;
 
-                    font-size:12px;
+                font-size:12px;
 
-                    color:#666;
-                }
+                color:#666;
+            }
 
-            </style>
+        </style>
 
-        </head>
+    </head>
 
-        <body>
+    <body>
 
-            <div class="card">
+        <div class="card">
 
-                <div class="logo">
-                    🌀
-                </div>
-
-                <h2>NV Sistema</h2>
-
-                <form method="POST">
-
-                    <input
-                        type="text"
-                        name="usuario"
-                        placeholder="Usuário"
-                        required
-                    >
-
-                    <input
-                        type="password"
-                        name="senha"
-                        placeholder="Senha"
-                        required
-                    >
-
-                    <button type="submit">
-                        Entrar
-                    </button>
-
-                </form>
-
-                <div class="rodape">
-                    Painel Administrativo
-                </div>
-
+            <div class="logo">
+                🌀
             </div>
 
-        </body>
-        </html>
-        """
+            <h2>NV Sistema</h2>
+
+            <form method="POST">
+
+                <input
+                    type="text"
+                    name="usuario"
+                    placeholder="Usuário"
+                    required
+                >
+
+                <input
+                    type="password"
+                    name="senha"
+                    placeholder="Senha"
+                    required
+                >
+
+                <button type="submit">
+                    Entrar
+                </button>
+
+            </form>
+
+            <div class="rodape">
+                Painel Administrativo
+            </div>
+
+        </div>
+
+    </body>
+    </html>
+    """
 # ======== RUN ========
 if __name__ == "__main__":
     import os
