@@ -215,6 +215,9 @@ def set_config(chave, valor):
 @app.route("/")
 @app.route("/painel")
 def painel():
+    if not session.get("admin_logado"):
+        return redirect("/login")
+
     conn = conectar()
     cur = conn.cursor()
     cur.execute("""
