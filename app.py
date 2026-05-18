@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify, flash
+from flask import Flask, render_template, request, redirect, url_for, jsonify, flash, session
 import psycopg2
 from datetime import datetime, timedelta
 import io
@@ -335,6 +335,9 @@ def configuracoes():
 # ======== Faturas ========
 @app.route("/faturas")
 def faturas():
+    if not session.get("admin_logado"):
+        return redirect("/login")
+    
     conn = conectar()
     cur = conn.cursor()
     cur.execute("""
@@ -494,7 +497,8 @@ def api_licencas():
 
 @app.route("/licencas")
 def licencas():
-
+    if not session.get("admin_logado"):
+        return redirect("/login")
     conn = conectar()
     cur = conn.cursor()
 
@@ -830,8 +834,8 @@ scheduler.start()
 # ======== LOGOUT ========
 @app.route("/logout")
 def logout():
-    flash("Você saiu do sistema.", "info")
-    return redirect(url_for("painel"))
+    session.clear()
+    return redirect("/login")
 
 @app.route("/teste_pagamento")
 def teste_pagamento():
@@ -842,6 +846,9 @@ def teste_pagamento():
 
 @app.route("/atualizar_valor/<int:cliente_id>", methods=["POST"])
 def atualizar_valor(cliente_id):
+
+    if not session.get("admin_logado"):
+        return redirect("/login")
 
     valor = request.form.get("valor_mensal", 0)
 
@@ -912,6 +919,9 @@ def clientes():
     conn = conectar()
     cur = conn.cursor()
 
+    if not session.get("admin_logado"):
+        return redirect("/login")
+    
     cur.execute("""
         SELECT id, empresa, maquina_id, email, status
         FROM clientes_nv
@@ -938,7 +948,43 @@ def atualizacoes():
         title="Atualizações"
     )
 
+@app.route("/login", methods=["GET", "POST"])
+def login():
 
+    if request.method == "POST":
+
+        usuario = request.form.get("usuario")
+        senha = request.form.get("senha")
+
+        conn = conectar()
+        cur = conn.cursor()
+
+        cur.execute("""
+            SELECT id
+            FROM usuarios_admin
+            WHERE usuario=%s
+            AND senha=%s
+            AND ativo=TRUE
+        """, (usuario, senha))
+
+        user = cur.fetchone()
+
+        conn.close()
+
+        if user:
+
+            session["admin_logado"] = True
+            return redirect("/")
+
+        return "Login inválido"
+
+    return """
+        <form method="POST">
+            <input name="usuario" placeholder="Usuário">
+            <input name="senha" type="password" placeholder="Senha">
+            <button type="submit">Entrar</button>
+        </form>
+    """
 # ======== RUN ========
 if __name__ == "__main__":
     import os
