@@ -1001,7 +1001,7 @@ def adicionar_usuario():
     status = request.form.get("status")
 
     # CONVERTE STATUS
-    ativo = "Ativo" if status == "Ativo" else "Inativo"
+    ativo = True if status == "Ativo" else False
 
     # CRIPTOGRAFA SENHA
     senha_hash = generate_password_hash(senha)
@@ -1061,7 +1061,7 @@ def atualizar_usuario(id):
     usuario = request.form.get("usuario")
     status = request.form.get("status")
 
-    ativo = "Ativo" if status == "Ativo" else "Inativo"
+    ativo = True if status == "Ativo" else False
 
     conn = conectar()
     cur = conn.cursor()
@@ -1161,7 +1161,7 @@ def login():
 
         # SE ENCONTROU
         if user:
-
+            print(user)
             session["admin_logado"] = True
 
             session["usuario_id"] = user[0]
