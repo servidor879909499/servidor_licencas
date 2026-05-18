@@ -16,7 +16,7 @@ load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 app = Flask(__name__)
-app.secret_key = "sua_chave_secreta_aqui"
+app.secret_key = "NV_SECRET_2026"
 
 # ======== CONEXÃO COM O BANCO ========
 
@@ -977,17 +977,181 @@ def login():
         if user:
 
             session["admin_logado"] = True
+
             return redirect("/")
 
         return "Login inválido"
 
     return """
-        <form method="POST">
-            <input name="usuario" placeholder="Usuário">
-            <input name="senha" type="password" placeholder="Senha">
-            <button type="submit">Entrar</button>
-        </form>
-    """
+        <!DOCTYPE html>
+        <html lang="pt">
+        <head>
+
+            <meta charset="UTF-8">
+
+            <title>Login NV Sistema</title>
+
+            <style>
+
+                *{
+                    margin:0;
+                    padding:0;
+                    box-sizing:border-box;
+                    font-family:Segoe UI;
+                }
+
+                body{
+
+                    height:100vh;
+
+                    display:flex;
+
+                    justify-content:center;
+                    align-items:center;
+
+                    background:linear-gradient(
+                        135deg,
+                        #1E90FF,
+                        #57848b
+                    );
+                }
+
+                .card{
+
+                    width:360px;
+
+                    background:white;
+
+                    border-radius:18px;
+
+                    padding:35px;
+
+                    box-shadow:0 10px 30px rgba(0,0,0,0.25);
+
+                    text-align:center;
+                }
+
+                .logo{
+
+                    font-size:55px;
+                    margin-bottom:10px;
+                }
+
+                h2{
+
+                    color:#1E90FF;
+
+                    margin-bottom:25px;
+                }
+
+                input{
+
+                    width:100%;
+
+                    padding:13px;
+
+                    margin-bottom:15px;
+
+                    border:1px solid #d9d9d9;
+
+                    border-radius:10px;
+
+                    font-size:15px;
+
+                    outline:none;
+
+                    transition:0.2s;
+                }
+
+                input:focus{
+
+                    border-color:#1E90FF;
+
+                    box-shadow:0 0 8px rgba(30,144,255,0.3);
+                }
+
+                button{
+
+                    width:100%;
+
+                    padding:13px;
+
+                    border:none;
+
+                    border-radius:10px;
+
+                    background:#1E90FF;
+
+                    color:white;
+
+                    font-size:16px;
+
+                    font-weight:bold;
+
+                    cursor:pointer;
+
+                    transition:0.2s;
+                }
+
+                button:hover{
+
+                    background:#1877d3;
+                }
+
+                .rodape{
+
+                    margin-top:18px;
+
+                    font-size:12px;
+
+                    color:#666;
+                }
+
+            </style>
+
+        </head>
+
+        <body>
+
+            <div class="card">
+
+                <div class="logo">
+                    🌀
+                </div>
+
+                <h2>NV Sistema</h2>
+
+                <form method="POST">
+
+                    <input
+                        type="text"
+                        name="usuario"
+                        placeholder="Usuário"
+                        required
+                    >
+
+                    <input
+                        type="password"
+                        name="senha"
+                        placeholder="Senha"
+                        required
+                    >
+
+                    <button type="submit">
+                        Entrar
+                    </button>
+
+                </form>
+
+                <div class="rodape">
+                    Painel Administrativo
+                </div>
+
+            </div>
+
+        </body>
+        </html>
+        """
 # ======== RUN ========
 if __name__ == "__main__":
     import os
