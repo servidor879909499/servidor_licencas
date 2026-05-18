@@ -1002,7 +1002,7 @@ def adicionar_usuario():
     ativo = True if status == "Ativo" else False
 
     # ===============================
-    # VALIDAÇÃO DE FORÇA DA SENHA
+    # VALIDAÇÃO FORTE (OBRIGATÓRIA)
     # ===============================
     def forca_senha(s):
         score = 0
@@ -1022,23 +1022,20 @@ def adicionar_usuario():
 
     score = forca_senha(senha)
 
-    # BLOQUEIO DE SENHA FRACA
+    # 🔴 BLOQUEIO REAL (IMPORTANTE)
     if score <= 2:
-
         flash("Senha fraca! Use letras maiúsculas, números e símbolos.", "danger")
         return redirect("/usuarios")
 
+    # ===============================
+    # SALVAR NO BANCO
+    # ===============================
     conn = conectar()
     cur = conn.cursor()
 
     cur.execute("""
         INSERT INTO usuarios_admin
-        (
-            usuario,
-            senha,
-            ativo,
-            tipo
-        )
+        (usuario, senha, ativo, tipo)
         VALUES (%s, %s, %s, %s)
     """, (
         usuario,
@@ -1051,7 +1048,6 @@ def adicionar_usuario():
     conn.close()
 
     flash("Usuário adicionado com sucesso!", "success")
-
     return redirect("/usuarios")
 # =========================================================
 # ATUALIZAR USUÁRIO
