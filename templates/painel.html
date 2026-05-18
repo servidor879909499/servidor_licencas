@@ -167,11 +167,15 @@ body {
 
 <h5>Menu</h5>
 
+{% if session.get("tipo") == "admin" %}
+
 <a href="{{ url_for('usuarios') }}"
    class="{% if request.path == '/usuarios' %}active{% endif %}">
     <span class="icon">👤</span>
     <span class="text">Usuários</span>
 </a>
+
+{% endif %}
 
 <a href="{{ url_for('painel') }}"
    class="{% if request.path == '/painel' %}active{% endif %}">

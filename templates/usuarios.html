@@ -1,23 +1,393 @@
-<h2>Usuários do Sistema</h2>
+<div class="container-fluid mt-4">
 
-<table border="1" cellpadding="10">
+    <!-- TOPO -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
 
-    <tr>
-        <th>ID</th>
-        <th>Usuário</th>
-        <th>Status</th>
-        <th>Data</th>
-    </tr>
+        <div>
+            <h2 class="fw-bold text-dark">
+                Usuários do Sistema
+            </h2>
 
-    {% for u in usuarios %}
+            <p class="text-muted mb-0">
+                Gerencie os usuários cadastrados
+            </p>
+        </div>
 
-    <tr>
-        <td>{{ u[0] }}</td>
-        <td>{{ u[1] }}</td>
-        <td>{{ u[2] }}</td>
-        <td>{{ u[3] }}</td>
-    </tr>
+        <!-- BOTÃO NOVO -->
+        <button class="btn btn-primary shadow-sm px-4"
+                data-bs-toggle="modal"
+                data-bs-target="#modalNovoUsuario">
 
-    {% endfor %}
+            <i class="fas fa-plus"></i>
+            Novo Usuário
 
-</table>
+        </button>
+
+    </div>
+
+    <!-- CARD -->
+    <div class="card border-0 shadow-lg rounded-4">
+
+        <div class="card-body">
+
+            <!-- TABELA -->
+            <div class="table-responsive">
+
+                <table class="table table-hover align-middle">
+
+                    <thead class="table-dark">
+
+                        <tr>
+                            <th>ID</th>
+                            <th>Usuário</th>
+                            <th>Status</th>
+                            <th>Data</th>
+                            <th width="220">Ações</th>
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                        {% for u in usuarios %}
+
+                        <tr>
+
+                            <!-- ID -->
+                            <td>
+                                <span class="fw-bold text-secondary">
+                                    #{{ u[0] }}
+                                </span>
+                            </td>
+
+                            <!-- USUÁRIO -->
+                            <td>
+
+                                <div class="d-flex align-items-center gap-3">
+
+                                    <!-- AVATAR -->
+                                    <div style="
+                                        width:45px;
+                                        height:45px;
+                                        border-radius:50%;
+                                        background:#0d6efd;
+                                        color:white;
+                                        display:flex;
+                                        align-items:center;
+                                        justify-content:center;
+                                        font-weight:bold;
+                                        font-size:18px;
+                                    ">
+
+                                        {{ u[1][0].upper() }}
+
+                                    </div>
+
+                                    <!-- NOME -->
+                                    <div>
+
+                                        <div class="fw-bold">
+                                            {{ u[1] }}
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+                            </td>
+
+                            <!-- STATUS -->
+                            <td>
+
+                                {% if u[2] == "Ativo" %}
+
+                                    <span class="badge bg-success px-3 py-2">
+                                        Ativo
+                                    </span>
+
+                                {% else %}
+
+                                    <span class="badge bg-danger px-3 py-2">
+                                        Inativo
+                                    </span>
+
+                                {% endif %}
+
+                            </td>
+
+                            <!-- DATA -->
+                            <td>
+                                {{ u[3] }}
+                            </td>
+
+                            <!-- AÇÕES -->
+                            <td>
+
+                                <div class="d-flex gap-2">
+
+                                    <!-- EDITAR -->
+                                    <button class="btn btn-warning btn-sm shadow-sm"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#editarUsuario{{ u[0] }}">
+
+                                        <i class="fas fa-edit"></i>
+                                        Atualizar
+
+                                    </button>
+
+                                    <!-- ELIMINAR -->
+                                    <a href="/eliminar_usuario/{{ u[0] }}"
+                                       class="btn btn-danger btn-sm shadow-sm"
+                                       onclick="return confirm('Deseja eliminar este usuário?')">
+
+                                        <i class="fas fa-trash"></i>
+                                        Eliminar
+
+                                    </a>
+
+                                </div>
+
+                            </td>
+
+                        </tr>
+
+                        <!-- MODAL EDITAR -->
+                        <div class="modal fade"
+                             id="editarUsuario{{ u[0] }}"
+                             tabindex="-1">
+
+                            <div class="modal-dialog">
+
+                                <div class="modal-content border-0 rounded-4">
+
+                                    <!-- HEADER -->
+                                    <div class="modal-header bg-warning">
+
+                                        <h5 class="modal-title fw-bold">
+                                            Atualizar Usuário
+                                        </h5>
+
+                                        <button type="button"
+                                                class="btn-close"
+                                                data-bs-dismiss="modal">
+                                        </button>
+
+                                    </div>
+
+                                    <!-- FORM -->
+                                    <form method="POST"
+                                          action="/atualizar_usuario/{{ u[0] }}">
+
+                                        <div class="modal-body">
+
+                                            <!-- USUÁRIO -->
+                                            <div class="mb-3">
+
+                                                <label class="form-label">
+                                                    Usuário
+                                                </label>
+
+                                                <input type="text"
+                                                       name="usuario"
+                                                       class="form-control"
+                                                       value="{{ u[1] }}"
+                                                       required>
+
+                                            </div>
+
+                                            <!-- STATUS -->
+                                            <div class="mb-3">
+
+                                                <label class="form-label">
+                                                    Status
+                                                </label>
+
+                                                <select name="status"
+                                                        class="form-select">
+
+                                                    <option value="Ativo"
+                                                    {% if u[2] == "Ativo" %}selected{% endif %}>
+                                                        Ativo
+                                                    </option>
+
+                                                    <option value="Inativo"
+                                                    {% if u[2] == "Inativo" %}selected{% endif %}>
+                                                        Inativo
+                                                    </option>
+
+                                                </select>
+
+                                            </div>
+
+                                        </div>
+
+                                        <!-- FOOTER -->
+                                        <div class="modal-footer">
+
+                                            <button type="button"
+                                                    class="btn btn-secondary"
+                                                    data-bs-dismiss="modal">
+
+                                                Fechar
+
+                                            </button>
+
+                                            <button type="submit"
+                                                    class="btn btn-warning">
+
+                                                Atualizar
+
+                                            </button>
+
+                                        </div>
+
+                                    </form>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                        {% endfor %}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- MODAL NOVO USUÁRIO -->
+<div class="modal fade"
+     id="modalNovoUsuario"
+     tabindex="-1">
+
+    <div class="modal-dialog">
+
+        <div class="modal-content border-0 rounded-4">
+
+            <!-- HEADER -->
+            <div class="modal-header bg-primary text-white">
+
+                <h5 class="modal-title fw-bold">
+                    Novo Usuário
+                </h5>
+
+                <button type="button"
+                        class="btn-close btn-close-white"
+                        data-bs-dismiss="modal">
+                </button>
+
+            </div>
+
+            <!-- FORM -->
+            <form method="POST"
+                  action="/adicionar_usuario">
+
+                <div class="modal-body">
+
+                    <!-- USUÁRIO -->
+                    <div class="mb-3">
+
+                        <label class="form-label">
+                            Usuário
+                        </label>
+
+                        <input type="text"
+                               name="usuario"
+                               class="form-control"
+                               required>
+
+                    </div>
+
+                    <!-- SENHA -->
+                    <div class="mb-3">
+
+                        <label class="form-label">
+                            Senha
+                        </label>
+
+                        <input type="password"
+                               name="senha"
+                               class="form-control"
+                               required>
+
+                    </div>
+
+                    <!-- STATUS -->
+                    <div class="mb-3">
+
+                        <label class="form-label">
+                            Status
+                        </label>
+
+                        <select name="status"
+                                class="form-select">
+
+                            <option value="Ativo">
+                                Ativo
+                            </option>
+
+                            <option value="Inativo">
+                                Inativo
+                            </option>
+
+                        </select>
+
+                    </div>
+
+                </div>
+
+                <!-- FOOTER -->
+                <div class="modal-footer">
+
+                    <button type="button"
+                            class="btn btn-secondary"
+                            data-bs-dismiss="modal">
+
+                        Fechar
+
+                    </button>
+
+                    <button type="submit"
+                            class="btn btn-primary">
+
+                        Salvar Usuário
+
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+
+        {% for categoria, mensagem in messages %}
+
+            <div class="alert alert-{{ categoria }} alert-dismissible fade show">
+
+                {{ mensagem }}
+
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="alert">
+                </button>
+
+            </div>
+
+        {% endfor %}
+
+    {% endif %}
+{% endwith %}

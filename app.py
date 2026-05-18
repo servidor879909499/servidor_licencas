@@ -951,11 +951,22 @@ def atualizacoes():
         title="Atualizações"
     )
 
+from flask import request, redirect, session, flash
+from werkzeug.security import generate_password_hash
+
+# =========================================================
+# LISTAR USUÁRIOS
+# =========================================================
 @app.route("/usuarios")
 def usuarios():
 
+    # VERIFICA LOGIN
     if not session.get("admin_logado"):
         return redirect("/login")
+
+    # VERIFICA TIPO
+    if session.get("tipo") != "admin":
+        return redirect("/painel")
 
     conn = conectar()
     cur = conn.cursor()
@@ -967,9 +978,158 @@ def usuarios():
     """)
 
     usuarios = cur.fetchall()
+
     conn.close()
 
-    return render_template("usuarios.html", usuarios=usuarios)
+    return render_template(
+        "usuarios.html",
+        usuarios=usuarios
+    )
+
+
+# =========================================================
+# ADICIONAR USUÁRIO
+# =========================================================
+@app.route("/adicionar_usuario", methods=["POST"])
+def adicionar_usuario():
+
+    if not session.get("admin_logado"):
+        return redirect("/login")
+
+    usuario = request.form.get("usuario")
+    senha = request.form.get("senha")
+    status = request.form.get("status")
+
+    # CONVERTE STATUS
+    ativo = "Ativo" if status == "Ativo" else "Inativo"
+
+    # CRIPTOGRAFA SENHA
+    senha_hash = generate_password_hash(senha)
+
+    conn = conectar()
+    cur = conn.cursor()
+
+    # VERIFICA DUPLICADO
+    cur.execute("""
+        SELECT id
+        FROM usuarios_admin
+        WHERE usuario = %s
+    """, (usuario,))
+
+    existe = cur.fetchone()
+
+    if existe:
+
+        conn.close()
+
+        flash("Usuário já existe!", "danger")
+
+        return redirect("/usuarios")
+
+    # INSERT
+    cur.execute("""
+        INSERT INTO usuarios_admin
+        (
+            usuario,
+            senha,
+            ativo
+        )
+        VALUES (%s, %s, %s)
+    """, (
+        usuario,
+        senha_hash,
+        ativo
+    ))
+
+    conn.commit()
+    conn.close()
+
+    flash("Usuário adicionado com sucesso!", "success")
+
+    return redirect("/usuarios")
+
+
+# =========================================================
+# ATUALIZAR USUÁRIO
+# =========================================================
+@app.route("/atualizar_usuario/<int:id>", methods=["POST"])
+def atualizar_usuario(id):
+
+    if not session.get("admin_logado"):
+        return redirect("/login")
+
+    usuario = request.form.get("usuario")
+    status = request.form.get("status")
+
+    ativo = "Ativo" if status == "Ativo" else "Inativo"
+
+    conn = conectar()
+    cur = conn.cursor()
+
+    cur.execute("""
+        UPDATE usuarios_admin
+        SET
+            usuario = %s,
+            ativo = %s
+        WHERE id = %s
+    """, (
+        usuario,
+        ativo,
+        id
+    ))
+
+    conn.commit()
+    conn.close()
+
+    flash("Usuário atualizado com sucesso!", "success")
+
+    return redirect("/usuarios")
+
+
+# =========================================================
+# ELIMINAR USUÁRIO
+# =========================================================
+@app.route("/eliminar_usuario/<int:id>")
+def eliminar_usuario(id):
+
+    if not session.get("admin_logado"):
+        return redirect("/login")
+
+    conn = conectar()
+    cur = conn.cursor()
+
+    # NÃO PERMITE ELIMINAR A SI MESMO
+    cur.execute("""
+        SELECT usuario
+        FROM usuarios_admin
+        WHERE id = %s
+    """, (id,))
+
+    usuario = cur.fetchone()
+
+    if usuario and usuario[0] == session.get("usuario"):
+
+        conn.close()
+
+        flash(
+            "Você não pode eliminar seu próprio usuário!",
+            "danger"
+        )
+
+        return redirect("/usuarios")
+
+    # DELETE
+    cur.execute("""
+        DELETE FROM usuarios_admin
+        WHERE id = %s
+    """, (id,))
+
+    conn.commit()
+    conn.close()
+
+    flash("Usuário eliminado com sucesso!", "success")
+
+    return redirect("/usuarios")
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -997,10 +1157,10 @@ def login():
         if user:
 
             session["admin_logado"] = True
+            session["usuario"] = user[0]
+            session["tipo"] = user[1]
 
-            return redirect("/")
-
-        return "Login inválido"
+        return redirect("/painel")
 
     return """
     <!DOCTYPE html>
