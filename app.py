@@ -348,7 +348,7 @@ def faturas():
     conn = conectar()
     cur = conn.cursor()
     cur.execute("""
-        SELECT f.id, f.cliente_id, COALESCE(c.empresa, '') as empresa, f.email_cliente, f.valor, f.dia_emissao, f.proxima_envio, f.ativo
+        SELECT f.id, f.cliente_id, COALESCE(c.empresa, '') as empresa, f.email_cliente, f.valor, f.f.data_emissao, f.proxima_envio, f.ativo
         FROM faturas_agendadas f
         LEFT JOIN clientes_nv c ON c.id = f.cliente_id
         ORDER BY f.proxima_envio
