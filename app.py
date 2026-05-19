@@ -1407,7 +1407,7 @@ def enviar_email_fatura(destinatario, valor):
     from email.mime.multipart import MIMEMultipart
 
     remetente = "bnservicoslda@gmail.com"
-    senha = "qqxq ycon rmpz wdnt"
+    senha = "qqxqyconrmpzwdnt"
 
     assunto = "Fatura Agendada"
 
@@ -1452,7 +1452,7 @@ def verificar_faturas_agendadas():
         SELECT id, cliente_id, email_cliente, valor
         FROM faturas_agendadas
         WHERE ativo = TRUE
-        AND proximo_envio <= %s
+        AND proxima_envio <= %s
     """, (agora,))
 
     faturas = cur.fetchall()
