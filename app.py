@@ -1490,22 +1490,32 @@ def loop_faturas():
             print("Erro no agendamento:", e)
 
         time.sleep(60)
-
+        
 # ======== RUN ========
 if __name__ == "__main__":
+
     import os
 
+    threading.Thread(
+        target=loop_faturas,
+        daemon=True
+    ).start()
+
     try:
+
         port = int(os.environ.get("PORT", 5000))
 
         app.run(
             host="0.0.0.0",
             port=port,
-            debug=True
+            debug=True,
+            use_reloader=False
         )
 
     finally:
+
         try:
             scheduler.shutdown(wait=False)
+
         except Exception:
             pass
