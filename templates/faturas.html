@@ -89,9 +89,13 @@ body { background-color: #f8f9fa; overflow-x: hidden; }
         <label for="valor" class="form-label">Valor (MZN)</label>
         <input type="number" step="0.01" id="valor" name="valor" class="form-control" placeholder="0.00" required>
       </div>
-      <div class="col-md-2">
-        <label for="dia_emissao" class="form-label">Data de Emissão</label>
-        <input type="date" id="dia_emissao" name="dia_emissao" class="form-control" required>
+      <div class="col-md-3">
+          <label for="dia_emissao" class="form-label">Data e Hora</label>
+          <input type="datetime-local"
+                id="dia_emissao"
+                name="dia_emissao"
+                class="form-control"
+                required>
       </div>
       <div class="col-12 text-end mt-3">
         <button type="submit" class="btn btn-success">Agendar Fatura</button>

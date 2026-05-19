@@ -357,35 +357,81 @@ def faturas():
 
 @app.route("/faturas/agendar", methods=["POST"])
 def agendar_fatura():
+
+    from datetime import datetime
+
     cliente_id = request.form.get("cliente_id")
     valor = request.form.get("valor")
     dia_emissao = request.form.get("dia_emissao")
     email_cliente_form = request.form.get("email_cliente", None)
 
     if not cliente_id or not valor or not dia_emissao:
-        flash("Preencha todos os campos para agendar a fatura.", "warning")
+        flash(
+            "Preencha todos os campos para agendar a fatura.",
+            "warning"
+        )
         return redirect(url_for("faturas"))
 
     conn = conectar()
     cur = conn.cursor()
-    cur.execute("SELECT email FROM clientes_nv WHERE id = %s", (cliente_id,))
+
+    cur.execute(
+        "SELECT email FROM clientes_nv WHERE id = %s",
+        (cliente_id,)
+    )
+
     row = cur.fetchone()
-    email_cliente = row[0] if row and row[0] else email_cliente_form
+
+    email_cliente = (
+        row[0]
+        if row and row[0]
+        else email_cliente_form
+    )
 
     try:
-        proxima = datetime.strptime(dia_emissao, "%Y-%m-%d").replace(hour=9, minute=0, second=0)
+
+        proxima = datetime.strptime(
+            dia_emissao,
+            "%Y-%m-%dT%H:%M"
+        )
+
     except Exception:
-        flash("Formato de data inválido. Use YYYY-MM-DD.", "warning")
+
+        flash(
+            "Formato de data inválido.",
+            "warning"
+        )
+
         conn.close()
+
         return redirect(url_for("faturas"))
 
     cur.execute("""
-        INSERT INTO faturas_agendadas (cliente_id, email_cliente, valor, dia_emissao, proxima_envio, ativo)
+        INSERT INTO faturas_agendadas
+        (
+            cliente_id,
+            email_cliente,
+            valor,
+            dia_emissao,
+            proxima_envio,
+            ativo
+        )
         VALUES (%s, %s, %s, %s, %s, TRUE)
-    """, (cliente_id, email_cliente, valor, dia_emissao, proxima))
+    """, (
+        cliente_id,
+        email_cliente,
+        valor,
+        proxima,
+        proxima
+    ))
+
     conn.commit()
     conn.close()
-    flash("Fatura agendada com sucesso.", "success")
+
+    flash(
+        "Fatura agendada com sucesso.",
+        "success"
+    )
     return redirect(url_for("faturas"))
 
 @app.route("/faturas/cancelar/<int:fatura_id>", methods=["POST"])
@@ -1353,6 +1399,98 @@ def login():
 
     </html>
     """
+def enviar_email_fatura(destinatario, valor):
+
+    import smtplib
+
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+
+    remetente = "bnservicoslda@gmail.com"
+    senha = "qqxq ycon rmpz wdnt"
+
+    assunto = "Fatura Agendada"
+
+    mensagem = f"""
+    Olá,
+
+    Sua fatura no valor de {valor} MZN foi emitida.
+
+    Obrigado.
+    """
+
+    msg = MIMEMultipart()
+
+    msg["From"] = remetente
+    msg["To"] = destinatario
+    msg["Subject"] = assunto
+
+    msg.attach(MIMEText(mensagem, "plain"))
+
+    servidor = smtplib.SMTP("smtp.gmail.com", 587)
+
+    servidor.starttls()
+
+    servidor.login(remetente, senha)
+
+    servidor.send_message(msg)
+
+    servidor.quit()
+
+    print("Email enviado com sucesso.")
+
+def verificar_faturas_agendadas():
+    from datetime import datetime
+    import psycopg2
+
+    conn = conectar()
+    cur = conn.cursor()
+
+    agora = datetime.now()
+
+    cur.execute("""
+        SELECT id, cliente_id, email_cliente, valor
+        FROM faturas_agendadas
+        WHERE ativa = TRUE
+        AND proximo_envio <= %s
+    """, (agora,))
+
+    faturas = cur.fetchall()
+
+    for f in faturas:
+        id_fatura = f[0]
+        email = f[2]
+        valor = f[3]
+
+        try:
+            enviar_email_fatura(email, valor)
+
+            cur.execute("""
+                UPDATE faturas_agendadas
+                SET ultimo_envio = %s
+                WHERE id = %s
+            """, (agora, id_fatura))
+
+            conn.commit()
+
+        except Exception as e:
+            print("Erro:", e)
+
+    cur.close()
+    conn.close()
+
+import threading
+import time
+
+def loop_faturas():
+    while True:
+        try:
+            verificar_faturas_agendadas()
+        except Exception as e:
+            print("Erro no agendamento:", e)
+
+        time.sleep(60)
+
 # ======== RUN ========
 if __name__ == "__main__":
     import os
