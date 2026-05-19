@@ -703,7 +703,7 @@ def iniciar_pagamento_api():
 # ======== PDF e Email ========
 def gerar_pdf_fatura(empresa_info, cliente_info, valor, referencia):
     buffer = io.BytesIO()
-    p = rcanvas(buffer, pagesize=A4)
+    p = rcanvas.Canvas(buffer, pagesize=A4)
     width, height = A4
 
     p.setFont("Helvetica-Bold", 16)
@@ -1451,7 +1451,7 @@ def verificar_faturas_agendadas():
     cur.execute("""
         SELECT id, cliente_id, email_cliente, valor
         FROM faturas_agendadas
-        WHERE ativa = TRUE
+        WHERE ativo = TRUE
         AND proximo_envio <= %s
     """, (agora,))
 
@@ -1490,7 +1490,7 @@ def loop_faturas():
             print("Erro no agendamento:", e)
 
         time.sleep(60)
-        
+
 # ======== RUN ========
 if __name__ == "__main__":
 
