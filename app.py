@@ -11,6 +11,10 @@ from email.mime.text import MIMEText
 from email import encoders
 from apscheduler.schedulers.background import BackgroundScheduler
 import os
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+from email.mime.application import MIMEApplication
+from io import BytesIO
 from dotenv import load_dotenv
 load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -355,6 +359,28 @@ def faturas():
     conn.close()
     return render_template("faturas.html", faturas=rows, clientes=clientes, title="Faturas")
 
+def gerar_pdf_fatura(cliente, valor, referencia):
+
+    buffer = BytesIO()
+
+    p = canvas.Canvas(buffer, pagesize=A4)
+
+    p.setFont("Helvetica-Bold", 16)
+    p.drawString(200, 800, "NV SISTEMA")
+
+    p.setFont("Helvetica", 12)
+    p.drawString(50, 750, f"Cliente: {cliente}")
+    p.drawString(50, 730, f"Valor: {valor} MZN")
+    p.drawString(50, 710, f"Referência: {referencia}")
+
+    p.drawString(50, 680, "Confirmação de pagamento emitida automaticamente.")
+
+    p.showPage()
+    p.save()
+
+    buffer.seek(0)
+    return buffer
+
 @app.route("/faturas/agendar", methods=["POST"])
 def agendar_fatura():
 
@@ -362,76 +388,58 @@ def agendar_fatura():
 
     cliente_id = request.form.get("cliente_id")
     valor = request.form.get("valor")
-    dia_emissao = request.form.get("dia_emissao")
+    data_hora = request.form.get("dia_emissao")
     email_cliente_form = request.form.get("email_cliente", None)
 
-    if not cliente_id or not valor or not dia_emissao:
-        flash(
-            "Preencha todos os campos para agendar a fatura.",
-            "warning"
-        )
+    if not cliente_id or not valor or not data_hora:
+        flash("Preencha todos os campos.", "warning")
+        return redirect(url_for("faturas"))
+
+    try:
+        valor = float(valor)
+    except:
+        flash("Valor inválido.", "warning")
+        return redirect(url_for("faturas"))
+
+    try:
+        data_envio = datetime.strptime(data_hora, "%Y-%m-%dT%H:%M")
+    except:
+        flash("Data inválida.", "warning")
         return redirect(url_for("faturas"))
 
     conn = conectar()
     cur = conn.cursor()
 
     cur.execute(
-        "SELECT email FROM clientes_nv WHERE id = %s",
+        "SELECT email FROM clientes_nv WHERE id=%s",
         (cliente_id,)
     )
-
     row = cur.fetchone()
 
-    email_cliente = (
-        row[0]
-        if row and row[0]
-        else email_cliente_form
-    )
-
-    try:
-
-        proxima = datetime.strptime(
-            dia_emissao,
-            "%Y-%m-%dT%H:%M"
-        )
-
-    except Exception:
-
-        flash(
-            "Formato de data inválido.",
-            "warning"
-        )
-
-        conn.close()
-
-        return redirect(url_for("faturas"))
+    email_cliente = row[0] if row and row[0] else email_cliente_form
 
     cur.execute("""
-        INSERT INTO faturas_agendadas
-        (
+        INSERT INTO faturas_agendadas (
             cliente_id,
             email_cliente,
             valor,
-            dia_emissao,
+            data_emissao,
             proxima_envio,
             ativo
         )
-        VALUES (%s, %s, %s, %s, %s, TRUE)
+        VALUES (%s,%s,%s,%s,%s,TRUE)
     """, (
         cliente_id,
         email_cliente,
         valor,
-        proxima,
-        proxima
+        data_envio,
+        data_envio
     ))
 
     conn.commit()
     conn.close()
 
-    flash(
-        "Fatura agendada com sucesso.",
-        "success"
-    )
+    flash("Fatura agendada com sucesso.", "success")
     return redirect(url_for("faturas"))
 
 @app.route("/faturas/cancelar/<int:fatura_id>", methods=["POST"])
@@ -700,46 +708,6 @@ def iniciar_pagamento_api():
             "mensagem": str(e)
         }), 500
 
-# ======== PDF e Email ========
-def gerar_pdf_fatura(empresa_info, cliente_info, valor, referencia):
-    buffer = io.BytesIO()
-    p = rcanvas.Canvas(buffer, pagesize=A4)
-    width, height = A4
-
-    p.setFont("Helvetica-Bold", 16)
-    p.drawString(40, height - 80, empresa_info.get("nome", "B&N SERVICOS LDA"))
-    p.setFont("Helvetica", 10)
-    p.drawString(40, height - 100, f"NUIT: {empresa_info.get('nuit', '')}")
-    p.drawString(40, height - 115, f"Email: {empresa_info.get('email', '')}")
-    p.drawString(40, height - 130, f"Telefone: {empresa_info.get('telefone', '')}")
-
-    p.setFont("Helvetica-Bold", 12)
-    p.drawString(40, height - 170, "Fatura de Cobrança")
-    p.setFont("Helvetica", 10)
-    p.drawString(40, height - 190, f"Referência: {referencia}")
-    p.drawString(40, height - 205, f"Data: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-
-    p.setFont("Helvetica-Bold", 11)
-    p.drawString(40, height - 240, "Cliente:")
-    p.setFont("Helvetica", 10)
-    p.drawString(40, height - 255, f"Nome/Empresa: {cliente_info.get('empresa', '')}")
-    p.drawString(40, height - 270, f"Email: {cliente_info.get('email', '')}")
-
-    p.setFont("Helvetica-Bold", 11)
-    p.drawString(40, height - 300, "Descrição")
-    p.drawString(400, height - 300, "Valor (MZN)")
-    p.setFont("Helvetica", 10)
-    p.drawString(40, height - 320, "Serviço Mensal")
-    p.drawString(400, height - 320, f"{valor:.2f}")
-
-    p.setFont("Helvetica-Bold", 12)
-    p.drawString(40, height - 360, f"Total: {valor:.2f} MZN")
-
-    p.showPage()
-    p.save()
-    buffer.seek(0)
-    return buffer.read()
-
 # ======== API PAGAMENTOS ========
 
 @app.route("/api/pagamento/iniciar", methods=["POST"])
@@ -790,94 +758,170 @@ def iniciar_pagamento():
             "sucesso": False,
             "erro": str(e)
         })
-    
-def enviar_email_com_anexo(destinatario, assunto, corpo_html, anexo_bytes, anexo_nome):
-    smtp_host = get_config("smtp_host", "smtp.gmail.com")
-    smtp_port = int(get_config("smtp_port", "587"))
-    smtp_user = get_config("smtp_user", "")
-    smtp_pass = get_config("smtp_pass", "")
+def gerar_pdf_fatura(empresa_info, cliente_info, valor, referencia):
 
-    if not smtp_user or not smtp_pass:
-        app.logger.error("SMTP não configurado corretamente.")
-        return False
+    buffer = io.BytesIO()
+    p = rcanvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
 
-    msg = MIMEMultipart()
-    msg["From"] = smtp_user
-    msg["To"] = destinatario
-    msg["Subject"] = assunto
-    msg.attach(MIMEText(corpo_html, "html"))
+    p.setFont("Helvetica-Bold", 16)
+    p.drawString(40, height - 80, empresa_info.get("nome", "NV SISTEMA"))
 
-    part = MIMEBase("application", "octet-stream")
-    part.set_payload(anexo_bytes)
-    encoders.encode_base64(part)
-    part.add_header("Content-Disposition", f'attachment; filename="{anexo_nome}"')
-    msg.attach(part)
+    p.setFont("Helvetica", 10)
+    p.drawString(40, height - 100, f"NUIT: {empresa_info.get('nuit', '')}")
+    p.drawString(40, height - 115, f"Email: {empresa_info.get('email', '')}")
+    p.drawString(40, height - 130, f"Telefone: {empresa_info.get('telefone', '')}")
+
+    p.setFont("Helvetica-Bold", 12)
+    p.drawString(40, height - 170, "Fatura de Cobrança")
+
+    p.setFont("Helvetica", 10)
+    p.drawString(40, height - 190, f"Referência: {referencia}")
+    p.drawString(40, height - 205, f"Data: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+
+    p.setFont("Helvetica-Bold", 11)
+    p.drawString(40, height - 240, "Cliente:")
+    p.setFont("Helvetica", 10)
+    p.drawString(40, height - 255, cliente_info.get("empresa", ""))
+    p.drawString(40, height - 270, cliente_info.get("email", ""))
+
+    p.setFont("Helvetica-Bold", 11)
+    p.drawString(40, height - 300, "Descrição")
+    p.drawString(400, height - 300, "Valor")
+
+    p.setFont("Helvetica", 10)
+    p.drawString(40, height - 320, "Serviço Mensal")
+    p.drawString(400, height - 320, f"{valor:.2f}")
+
+    p.setFont("Helvetica-Bold", 12)
+    p.drawString(40, height - 360, f"Total: {valor:.2f} MZN")
+
+    p.showPage()
+    p.save()
+
+    buffer.seek(0)
+    return buffer
+
+def enviar_email_fatura(destinatario, valor, pdf_buffer):
+
+    remetente = "bnservicoslda@gmail.com"
+    senha = "qqxqyconrmpzwdnt"
 
     try:
-        server = smtplib.SMTP(smtp_host, smtp_port, timeout=30)
-        server.starttls()
-        server.login(smtp_user, smtp_pass)
-        server.sendmail(smtp_user, [destinatario], msg.as_string())
-        server.quit()
-        return True
-    except Exception as e:
-        app.logger.exception("Erro ao enviar e-mail: %s", e)
-        return False
+        msg = MIMEMultipart()
+        msg["From"] = remetente
+        msg["To"] = destinatario
+        msg["Subject"] = "NV Sistema - Fatura de Cobrança"
 
-# ======== JOB: enviar faturas ========
+        texto = f"Sua fatura no valor de {valor:.2f} MZN está em anexo."
+        msg.attach(MIMEText(texto, "plain"))
+
+        # PDF
+        part = MIMEApplication(pdf_buffer.read(), _subtype="pdf")
+        part.add_header("Content-Disposition", "attachment", filename="fatura.pdf")
+        msg.attach(part)
+
+        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server.starttls()
+        server.login(remetente, senha)
+        server.send_message(msg)
+        server.quit()
+
+        return True
+
+    except Exception as e:
+        print("Erro email:", e)
+        return False
+    
 def verificar_e_enviar_faturas():
-    app.logger.info("Verificando faturas agendadas para envio...")
+
     conn = conectar()
     cur = conn.cursor()
+
+    agora = datetime.now()
+
     cur.execute("""
         SELECT id, cliente_id, email_cliente, valor, proxima_envio
         FROM faturas_agendadas
-        WHERE ativo = TRUE AND proxima_envio <= %s
+        WHERE ativo = TRUE
+        AND proxima_envio <= %s
         ORDER BY proxima_envio
-    """, (datetime.now(),))
-    rows = cur.fetchall()
-    for row in rows:
-        f_id, cliente_id, email_cliente, valor, proxima_envio = row
-        cur.execute("SELECT empresa, email FROM clientes_nv WHERE id = %s", (cliente_id,))
+    """, (agora,))
+
+    faturas = cur.fetchall()
+
+    for f in faturas:
+
+        f_id, cliente_id, email_cliente, valor, proxima_envio = f
+
+        # cliente
+        cur.execute("""
+            SELECT nome, email
+            FROM clientes_nv
+            WHERE id = %s
+        """, (cliente_id,))
+
         cliente = cur.fetchone()
+
         cliente_nome = cliente[0] if cliente else "Cliente"
-        cliente_email = cliente[1] or email_cliente
+        cliente_email = cliente[1] if cliente and cliente[1] else email_cliente
 
         empresa_info = {
-            "nome": get_config("empresa_nome", "B&N SERVICOS LDA"),
+            "nome": get_config("empresa_nome", "NV SISTEMA"),
             "nuit": get_config("empresa_nuit", ""),
-            "email": get_config("empresa_email", "bnsevicoslda@gmail.com"),
-            "telefone": get_config("empresa_telefone", "+258 844 648 689; +258 879 909 499")
+            "email": get_config("empresa_email", ""),
+            "telefone": get_config("empresa_telefone", "")
         }
-        cliente_info = {"empresa": cliente_nome, "email": cliente_email}
-        referencia = f"FAT-{f_id}-{proxima_envio.strftime('%Y%m%d')}"
-        try:
-            pdf_bytes = gerar_pdf_fatura(empresa_info, cliente_info, float(valor), referencia)
-        except Exception as e:
-            app.logger.exception("Erro gerando PDF: %s", e)
-            continue
 
-        corpo = f"""
-            <p>Olá {cliente_nome},</p>
-            <p>Segue anexo a fatura de cobrança referente ao serviço mensal. Valor: <strong>{float(valor):.2f} MZN</strong>.</p>
-            <p>Atenciosamente,<br>{empresa_info['nome']}</p>
-        """
+        cliente_info = {
+            "empresa": cliente_nome,
+            "email": cliente_email
+        }
+
+        referencia = f"FAT-{f_id}-{datetime.now().strftime('%Y%m%d')}"
+
+        # PDF
+        pdf_buffer = gerar_pdf_fatura(
+            empresa_info,
+            cliente_info,
+            float(valor),
+            referencia
+        )
+
+        # EMAIL
         if cliente_email:
-            enviado = enviar_email_com_anexo(cliente_email, f"Fatura - {empresa_info['nome']}", corpo, pdf_bytes, f"{referencia}.pdf")
+
+            enviado = enviar_email_fatura(
+                cliente_email,
+                float(valor),
+                pdf_buffer
+            )
+
             if enviado:
-                app.logger.info("Fatura %s enviada para %s", f_id, cliente_email)
-                proxima_nova = proxima_envio + timedelta(days=30)
-                cur.execute("UPDATE faturas_agendadas SET proxima_envio = %s WHERE id = %s", (proxima_nova, f_id))
+
+                proxima = proxima_envio + timedelta(days=30)
+
+                cur.execute("""
+                    UPDATE faturas_agendadas
+                    SET proxima_envio = %s
+                    WHERE id = %s
+                """, (proxima, f_id))
+
                 conn.commit()
+
             else:
-                app.logger.error("Falha ao enviar fatura %s para %s", f_id, cliente_email)
-        else:
-            app.logger.warning("Fatura %s sem email do cliente (id=%s)", f_id, cliente_id)
+                print(f"Falha envio fatura {f_id}")
+
     conn.close()
 
-# ======== Scheduler ========
 scheduler = BackgroundScheduler()
-scheduler.add_job(func=verificar_e_enviar_faturas, trigger="interval", seconds=60)
+scheduler.add_job(
+    verificar_e_enviar_faturas,
+    trigger="interval",
+    seconds=60,
+    max_instances=1
+)
+
 scheduler.start()
 
 # ======== LOGOUT ========
