@@ -347,17 +347,40 @@ def faturas():
     
     conn = conectar()
     cur = conn.cursor()
+
     cur.execute("""
-        SELECT f.id, f.cliente_id, COALESCE(c.empresa, '') as empresa, f.email_cliente, f.valor, f.f.data_emissao, f.proxima_envio, f.ativo
+        SELECT 
+            f.id,
+            f.cliente_id,
+            COALESCE(c.empresa, '') as empresa,
+            f.email_cliente,
+            f.valor,
+            f.data_emissao,
+            f.proxima_envio,
+            f.ativo
         FROM faturas_agendadas f
         LEFT JOIN clientes_nv c ON c.id = f.cliente_id
         ORDER BY f.proxima_envio
     """)
+
     rows = cur.fetchall()
-    cur.execute("SELECT id, empresa, email FROM clientes_nv ORDER BY empresa")
+
+    cur.execute("""
+        SELECT id, empresa, email
+        FROM clientes_nv
+        ORDER BY empresa
+    """)
+
     clientes = cur.fetchall()
+
     conn.close()
-    return render_template("faturas.html", faturas=rows, clientes=clientes, title="Faturas")
+
+    return render_template(
+        "faturas.html",
+        faturas=rows,
+        clientes=clientes,
+        title="Faturas"
+    )
 
 def gerar_pdf_fatura(cliente, valor, referencia):
 
@@ -760,77 +783,371 @@ def iniciar_pagamento():
         })
 def gerar_pdf_fatura(empresa_info, cliente_info, valor, referencia):
 
+    import io
+    from datetime import datetime
+    from reportlab.pdfgen import canvas as rcanvas
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors
+    from reportlab.platypus import Table, TableStyle
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+
     buffer = io.BytesIO()
+
     p = rcanvas.Canvas(buffer, pagesize=A4)
+
     width, height = A4
 
-    p.setFont("Helvetica-Bold", 16)
-    p.drawString(40, height - 80, empresa_info.get("nome", "NV SISTEMA"))
+    # =====================================================
+    # CORES
+    # =====================================================
 
+    azul = colors.HexColor("#0B3B75")
+    azul_claro = colors.HexColor("#EAF2FF")
+    cinza = colors.HexColor("#666666")
+    preto = colors.black
+
+    # =====================================================
+    # FUNÇÃO QUADRO ARREDONDADO
+    # =====================================================
+
+    def quadro(x, y, w, h, fill=colors.white, stroke=azul):
+        p.setFillColor(fill)
+        p.setStrokeColor(stroke)
+        p.roundRect(x, y, w, h, 10, fill=1, stroke=1)
+
+    # =====================================================
+    # CABEÇALHO
+    # =====================================================
+
+    quadro(25, height - 150, width - 50, 110, azul_claro)
+
+    p.setFillColor(azul)
+    p.setFont("Helvetica-Bold", 24)
+    p.drawString(40, height - 80, "B & N SERVICOS LDA")
+
+    p.setFillColor(cinza)
+    p.setFont("Helvetica", 11)
+    p.drawString(40, height - 100, "Soluções em Tecnologia e Gestão")
+
+    # Dados empresa
+    p.setFillColor(preto)
     p.setFont("Helvetica", 10)
-    p.drawString(40, height - 100, f"NUIT: {empresa_info.get('nuit', '')}")
-    p.drawString(40, height - 115, f"Email: {empresa_info.get('email', '')}")
-    p.drawString(40, height - 130, f"Telefone: {empresa_info.get('telefone', '')}")
 
+    p.drawString(
+        40,
+        height - 125,
+        f"NUIT: {empresa_info.get('nuit', '')}"
+    )
+
+    p.drawString(
+        220,
+        height - 125,
+        f"Email: {empresa_info.get('email', '')}"
+    )
+
+    p.drawString(
+        40,
+        height - 140,
+        f"Telefone: {empresa_info.get('telefone', '')}"
+    )
+
+    # =====================================================
+    # TITULO FATURA
+    # =====================================================
+
+    quadro(width - 250, height - 95, 200, 45, azul)
+
+    p.setFillColor(colors.white)
+    p.setFont("Helvetica-Bold", 18)
+    p.drawCentredString(
+        width - 150,
+        height - 67,
+        "FATURA"
+    )
+
+    # =====================================================
+    # DADOS FATURA
+    # =====================================================
+
+    quadro(25, height - 260, width - 50, 85)
+
+    p.setFillColor(azul)
     p.setFont("Helvetica-Bold", 12)
-    p.drawString(40, height - 170, "Fatura de Cobrança")
 
+    p.drawString(40, height - 195, "Referência:")
+    p.drawString(40, height - 215, "Data:")
+    p.drawString(40, height - 235, "Moeda:")
+
+    p.setFillColor(preto)
+    p.setFont("Helvetica", 11)
+
+    p.drawString(130, height - 195, str(referencia))
+    p.drawString(
+        130,
+        height - 215,
+        datetime.now().strftime("%d/%m/%Y %H:%M")
+    )
+
+    p.drawString(130, height - 235, "MZN")
+
+    # =====================================================
+    # CLIENTE
+    # =====================================================
+
+    quadro(25, height - 420, width - 50, 140)
+
+    p.setFillColor(azul)
+    p.setFont("Helvetica-Bold", 14)
+
+    p.drawString(40, height - 305, "DADOS DO CLIENTE")
+
+    p.setFillColor(preto)
+    p.setFont("Helvetica", 11)
+
+    p.drawString(40, height - 330, "Empresa:")
+    p.drawString(
+        130,
+        height - 330,
+        cliente_info.get("empresa", "")
+    )
+
+    p.drawString(40, height - 350, "Email:")
+    p.drawString(
+        130,
+        height - 350,
+        cliente_info.get("email", "")
+    )
+
+    p.drawString(40, height - 370, "Referência:")
+    p.drawString(130, height - 370, str(referencia))
+
+    # =====================================================
+    # TABELA SERVIÇOS
+    # =====================================================
+
+    tabela = [
+        ["#", "Descrição", "Qtd", "Preço", "Total"],
+        ["1", "Serviço Mensal NV Sistema", "1", f"{valor:.2f}", f"{valor:.2f}"]
+    ]
+
+    table = Table(
+        tabela,
+        colWidths=[40, 250, 60, 90, 90]
+    )
+
+    table.setStyle(TableStyle([
+
+        ('BACKGROUND', (0, 0), (-1, 0), azul),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+
+        ('GRID', (0, 0), (-1, -1), 1, colors.lightgrey),
+
+        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+
+        ('ALIGN', (2, 1), (-1, -1), 'CENTER'),
+
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+        ('TOPPADDING', (0, 0), (-1, 0), 10),
+
+    ]))
+
+    table.wrapOn(p, width, height)
+    table.drawOn(p, 25, height - 560)
+
+    # =====================================================
+    # CALCULOS IMPOSTOS
+    # =====================================================
+
+    iva = valor * 0.12
+    subtotal = valor - iva
+    total = subtotal + iva
+
+    quadro(width - 250, height - 710, 200, 120, azul_claro)
+
+    p.setFillColor(azul)
+    p.setFont("Helvetica-Bold", 12)
+
+    p.drawString(width - 230, height - 620, "Subtotal:")
+    p.drawString(width - 230, height - 645, "IVA (12%):")
+    p.drawString(width - 230, height - 675, "TOTAL:")
+
+    p.setFillColor(preto)
+    p.setFont("Helvetica", 11)
+
+    p.drawRightString(
+        width - 70,
+        height - 620,
+        f"{subtotal:.2f} MZN"
+    )
+
+    p.drawRightString(
+        width - 70,
+        height - 645,
+        f"{iva:.2f} MZN"
+    )
+
+    p.setFont("Helvetica-Bold", 13)
+
+    p.drawRightString(
+        width - 70,
+        height - 675,
+        f"{total:.2f} MZN"
+    )
+
+    # =====================================================
+    # OBSERVAÇÃO
+    # =====================================================
+
+    quadro(25, height - 710, 300, 120)
+
+    p.setFillColor(azul)
+    p.setFont("Helvetica-Bold", 12)
+
+    p.drawString(40, height - 620, "Observações")
+
+    p.setFillColor(cinza)
     p.setFont("Helvetica", 10)
-    p.drawString(40, height - 190, f"Referência: {referencia}")
-    p.drawString(40, height - 205, f"Data: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+
+    texto = (
+        "Agradecemos pela preferência.\n"
+        "Esta fatura foi emitida automaticamente\n"
+        "pelo sistema NV SISTEMA."
+    )
+
+    y = height - 645
+
+    for linha in texto.split("\n"):
+        p.drawString(40, y, linha)
+        y -= 15
+
+    # =====================================================
+    # RODAPÉ
+    # =====================================================
+
+    p.setFillColor(azul)
+
+    p.rect(0, 0, width, 40, fill=1)
+
+    p.setFillColor(colors.white)
 
     p.setFont("Helvetica-Bold", 11)
-    p.drawString(40, height - 240, "Cliente:")
-    p.setFont("Helvetica", 10)
-    p.drawString(40, height - 255, cliente_info.get("empresa", ""))
-    p.drawString(40, height - 270, cliente_info.get("email", ""))
 
-    p.setFont("Helvetica-Bold", 11)
-    p.drawString(40, height - 300, "Descrição")
-    p.drawString(400, height - 300, "Valor")
+    rodape = "NV SISTEMA - Soluções Inteligentes para o Seu Negócio"
 
-    p.setFont("Helvetica", 10)
-    p.drawString(40, height - 320, "Serviço Mensal")
-    p.drawString(400, height - 320, f"{valor:.2f}")
+    largura = stringWidth(
+        rodape,
+        "Helvetica-Bold",
+        11
+    )
 
-    p.setFont("Helvetica-Bold", 12)
-    p.drawString(40, height - 360, f"Total: {valor:.2f} MZN")
+    p.drawString(
+        (width - largura) / 2,
+        15,
+        rodape
+    )
+
+    # =====================================================
 
     p.showPage()
     p.save()
 
     buffer.seek(0)
+
     return buffer
 
 def enviar_email_fatura(destinatario, valor, pdf_buffer):
+
+    import smtplib
+
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+    from email.mime.base import MIMEBase
+    from email import encoders
 
     remetente = "bnservicoslda@gmail.com"
     senha = "qqxqyconrmpzwdnt"
 
     try:
+
+        print("DESTINATARIO:", destinatario)
+        print("VALOR:", valor)
+        print("PDF:", pdf_buffer)
+
+        if not destinatario:
+            raise Exception("Destinatário vazio")
+
+        if pdf_buffer is None:
+            raise Exception("PDF inválido")
+
+        pdf_buffer.seek(0)
+
+        pdf_bytes = pdf_buffer.read()
+
+        if not pdf_bytes:
+            raise Exception("PDF vazio")
+
         msg = MIMEMultipart()
-        msg["From"] = remetente
-        msg["To"] = destinatario
+
+        msg["From"] = str(remetente)
+        msg["To"] = str(destinatario)
         msg["Subject"] = "NV Sistema - Fatura de Cobrança"
 
-        texto = f"Sua fatura no valor de {valor:.2f} MZN está em anexo."
-        msg.attach(MIMEText(texto, "plain"))
+        corpo = f"""
+Olá,
 
-        # PDF
-        part = MIMEApplication(pdf_buffer.read(), _subtype="pdf")
-        part.add_header("Content-Disposition", "attachment", filename="fatura.pdf")
-        msg.attach(part)
+Segue em anexo a sua fatura no valor de {valor:.2f} MZN.
+
+Obrigado por utilizar o NV SISTEMA.
+"""
+
+        msg.attach(MIMEText(corpo, "plain", "utf-8"))
+
+        # =================================================
+        # ANEXO PDF
+        # =================================================
+
+        anexo = MIMEBase("application", "octet-stream")
+
+        anexo.set_payload(pdf_bytes)
+
+        encoders.encode_base64(anexo)
+
+        anexo.add_header(
+            "Content-Disposition",
+            "attachment; filename=fatura.pdf"
+        )
+
+        msg.attach(anexo)
+
+        # =================================================
 
         server = smtplib.SMTP("smtp.gmail.com", 587)
+
         server.starttls()
+
         server.login(remetente, senha)
-        server.send_message(msg)
+
+        texto = msg.as_string()
+
+        server.sendmail(
+            remetente,
+            destinatario,
+            texto
+        )
+
         server.quit()
+
+        print("Email enviado com sucesso.")
 
         return True
 
     except Exception as e:
-        print("Erro email:", e)
+
+        print("Erro:", e)
+
         return False
     
 def verificar_e_enviar_faturas():
@@ -856,7 +1173,7 @@ def verificar_e_enviar_faturas():
 
         # cliente
         cur.execute("""
-            SELECT nome, email
+            SELECT empresa, email
             FROM clientes_nv
             WHERE id = %s
         """, (cliente_id,))
@@ -1443,45 +1760,6 @@ def login():
 
     </html>
     """
-def enviar_email_fatura(destinatario, valor):
-
-    import smtplib
-
-    from email.mime.text import MIMEText
-    from email.mime.multipart import MIMEMultipart
-
-    remetente = "bnservicoslda@gmail.com"
-    senha = "qqxqyconrmpzwdnt"
-
-    assunto = "Fatura Agendada"
-
-    mensagem = f"""
-    Olá,
-
-    Sua fatura no valor de {valor} MZN foi emitida.
-
-    Obrigado.
-    """
-
-    msg = MIMEMultipart()
-
-    msg["From"] = remetente
-    msg["To"] = destinatario
-    msg["Subject"] = assunto
-
-    msg.attach(MIMEText(mensagem, "plain"))
-
-    servidor = smtplib.SMTP("smtp.gmail.com", 587)
-
-    servidor.starttls()
-
-    servidor.login(remetente, senha)
-
-    servidor.send_message(msg)
-
-    servidor.quit()
-
-    print("Email enviado com sucesso.")
 
 def verificar_faturas_agendadas():
     from datetime import datetime
@@ -1502,13 +1780,54 @@ def verificar_faturas_agendadas():
     faturas = cur.fetchall()
 
     for f in faturas:
+
         id_fatura = f[0]
+        cliente_id = f[1]
         email = f[2]
         valor = f[3]
 
         try:
-            enviar_email_fatura(email, valor)
 
+            # CLIENTE
+            cur.execute("""
+                SELECT empresa, email
+                FROM clientes_nv
+                WHERE id = %s
+            """, (cliente_id,))
+
+            cliente = cur.fetchone()
+
+            cliente_info = {
+                "empresa": cliente[0] if cliente else "",
+                "email": cliente[1] if cliente else email
+            }
+
+            # EMPRESA
+            empresa_info = {
+                "nome": "NV SISTEMA",
+                "nuit": "",
+                "email": "bnservicoslda@gmail.com",
+                "telefone": ""
+            }
+
+            referencia = f"FAT-{id_fatura}"
+
+            # GERAR PDF
+            pdf_buffer = gerar_pdf_fatura(
+                empresa_info,
+                cliente_info,
+                float(valor),
+                referencia
+            )
+
+            # ENVIAR EMAIL
+            enviar_email_fatura(
+                email,
+                float(valor),
+                pdf_buffer
+            )
+
+            # ATUALIZAR
             cur.execute("""
                 UPDATE faturas_agendadas
                 SET ultimo_envio = %s
@@ -1516,6 +1835,8 @@ def verificar_faturas_agendadas():
             """, (agora, id_fatura))
 
             conn.commit()
+
+            print("Fatura enviada com sucesso.")
 
         except Exception as e:
             print("Erro:", e)
