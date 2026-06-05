@@ -25,7 +25,7 @@ app.secret_key = "NV_SECRET_2026"
 # ======== CONEXÃO COM O BANCO ========
 
 def conectar():
-    return psycopg2.connect(DATABASE_URL)
+    return psycopg2.connect(ATABASE_URL)
 
 
 # ======== CRIAÇÃO/MIGRAÇÕES LEVES ========
